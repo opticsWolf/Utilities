@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A1B26" />
+      <stop offset="100%" stop-color="#111119" />
+    </linearGradient>
+
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255, 255, 255, 0.25)" />
+      <stop offset="100%" stop-color="rgba(255, 255, 255, 0.02)" />
+    </linearGradient>
+
+    <linearGradient id="gradBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE" />
+      <stop offset="100%" stop-color="#4FACFE" />
+    </linearGradient>
+
+    <linearGradient id="gradPurple" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#DA22FF" />
+      <stop offset="100%" stop-color="#9733EE" />
+    </linearGradient>
+
+    <linearGradient id="gradOrange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE000" />
+      <stop offset="100%" stop-color="#FF7A00" />
+    </linearGradient>
+
+    <filter id="fluentShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <rect x="24" y="24" width="208" height="208" rx="48" fill="url(#bgGrad)" filter="url(#fluentShadow)" />
+  <rect x="24" y="24" width="208" height="208" rx="48" fill="none" stroke="url(#borderGrad)" stroke-width="2" />
+
+  <g transform="translate(128, 128)">
+    
+    <rect x="-24" y="-70" width="48" height="140" rx="24" fill="url(#gradOrange)" transform="rotate(120)" filter="url(#fluentShadow)" />
+    <rect x="-24" y="-70" width="48" height="140" rx="24" fill="url(#gradPurple)" transform="rotate(60)" filter="url(#fluentShadow)" />
+    <rect x="-24" y="-70" width="48" height="140" rx="24" fill="url(#gradBlue)" filter="url(#fluentShadow)" />
+
+    <circle cx="-55" cy="-60" r="6.5" fill="url(#gradPurple)" filter="url(#fluentShadow)" />
+    <circle cx="65"  cy="-40" r="4.5" fill="url(#gradBlue)" filter="url(#fluentShadow)" />
+    <circle cx="-45" cy="70"  r="8.5" fill="url(#gradOrange)" filter="url(#fluentShadow)" />
+    <circle cx="60"  cy="60"  r="5.5" fill="url(#gradPurple)" filter="url(#fluentShadow)" />
+
+    <polygon points="0,-46 39.8,-23 39.8,23 0,46 -39.8,23 -39.8,-23" fill="#16161E" filter="url(#fluentShadow)" />
+
+    <path d="M 0,-46 L 39.8,-23 L 0,0 L -39.8,-23 Z" fill="rgba(255, 255, 255, 0.95)" />
+    
+    <path d="M -39.8,-23 L 0,0 L 0,46 L -39.8,23 Z" fill="rgba(255, 255, 255, 0.70)" />
+    
+    <path d="M 39.8,-23 L 0,0 L 0,46 L 39.8,23 Z" fill="rgba(255, 255, 255, 0.40)" />
+
+    <g stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#fluentShadow)">
+      <path d="M -15,-14 L -29,0 L -15,14" stroke="#00E5FF" />
+      
+      <path d="M 15,-14 L 29,0 L 15,14" stroke="#FF007F" />
+      
+      <path d="M -6,21 L 6,-21" stroke="#FFD700" />
+    </g>
+
+  </g>
+</svg>

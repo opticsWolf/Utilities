@@ -1,6 +1,8 @@
 import sys
+import os
 from PySide6.QtWidgets import QMainWindow, QApplication
 from PySide6.QtCore import Qt, QByteArray
+from PySide6.QtGui import QIcon
 
 # Import from custom modules
 from settings_manager import Settings
@@ -30,6 +32,11 @@ class MainWindow(
         super().__init__()
         self.setWindowTitle("Python Package Compiler & Manager v0.5")
         self.setMinimumSize(1000, 700)
+
+        # Load and set the window icon
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.svg")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         # Allow flexible nesting, tabbed docking, and animation
         self.setDockOptions(QMainWindow.AnimatedDocks | QMainWindow.AllowNestedDocks | QMainWindow.AllowTabbedDocks)
@@ -118,6 +125,10 @@ class MainWindow(
 def main():
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle("Fusion")
+    # Set application icon (affects taskbar/dock)
+    icon_path = os.path.join(os.path.dirname(__file__), "icon.svg")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
