@@ -105,7 +105,7 @@ except Exception:
 
         self.pypi_info_label.setTextFormat(Qt.RichText)
         self.pypi_info_label.setText(
-            f"<b>Version:</b> {v}<br><b>Summary:</b> {s}{homepage_link}{pypi_link}"
+            f"<b>Version:</b> {v}<br><b>Summary:</b> {s}{pypi_link}{homepage_link}"
         )
         self.pypi_info_label.setOpenExternalLinks(True)
 

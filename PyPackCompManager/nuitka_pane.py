@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QCheckBox,
+    QRadioButton,  # added for console mode selection
     QLabel,
     QPlainTextEdit,
     QFileDialog,
@@ -101,14 +102,49 @@ class NuitkaMixin:
             "Enable onefile mode. Packs the standalone distribution into a single executable file. It unpacks itself to a temporary directory at runtime."
         )
 
-        self.nuitka_disable_console_cb = QCheckBox("--disable-console")
-        self.nuitka_disable_console_cb.setToolTip(
-            "Disable the console window. Essential for GUI applications (like PySide/PyQt) so a terminal background window doesn't pop up behind your application UI."
+        # --- Console Mode Options (new) ---
+        self.nuitka_console_cb = QCheckBox("Override Windows Console Mode")
+        self.nuitka_console_cb.setToolTip("Enable to explicitly set the Windows console behavior.")
+
+        self.console_radio_layout = QHBoxLayout()
+        self.console_radio_layout.setContentsMargins(20, 0, 0, 0)  # indent radio buttons
+
+        self.console_disable_rb = QRadioButton("Disable")
+        self.console_disable_rb.setToolTip("Disable the console window (Ideal for GUI apps).")
+        self.console_disable_rb.setChecked(True)  # default when enabled
+
+        self.console_force_rb = QRadioButton("Force")
+        self.console_force_rb.setToolTip("Force the console window to appear.")
+
+        self.console_attach_rb = QRadioButton("Attach")
+        self.console_attach_rb.setToolTip("Attach to an existing console if available.")
+
+        self.console_radio_layout.addWidget(self.console_disable_rb)
+        self.console_radio_layout.addWidget(self.console_force_rb)
+        self.console_radio_layout.addWidget(self.console_attach_rb)
+        self.console_radio_layout.addStretch()
+
+        # Connect checkbox to enable/disable radio buttons
+        self.nuitka_console_cb.toggled.connect(
+            lambda checked: [
+                rb.setEnabled(checked)
+                for rb in (
+                    self.console_disable_rb,
+                    self.console_force_rb,
+                    self.console_attach_rb,
+                )
+            ]
         )
+        # Initially disabled because checkbox is off
+        self.nuitka_console_cb.setChecked(False)
+        for rb in (self.console_disable_rb, self.console_force_rb, self.console_attach_rb):
+            rb.setEnabled(False)
 
         modes_layout.addWidget(self.nuitka_standalone_cb)
         modes_layout.addWidget(self.nuitka_onefile_cb)
-        modes_layout.addWidget(self.nuitka_disable_console_cb)
+        modes_layout.addWidget(self.nuitka_console_cb)
+        modes_layout.addLayout(self.console_radio_layout)
+
         run_layout.addWidget(modes_group)
 
         # --- Data & Plugins (collapsible) ---
@@ -535,7 +571,10 @@ class NuitkaMixin:
         cbs = [
             self.nuitka_standalone_cb,
             self.nuitka_onefile_cb,
-            self.nuitka_disable_console_cb,
+            self.nuitka_console_cb,           # added
+            self.console_disable_rb,          # added
+            self.console_force_rb,            # added
+            self.console_attach_rb,           # added
             self.nuitka_uac_admin_cb,
             self.nuitka_auto_plugin_pyside6_cb,
             self.nuitka_no_dependency_walker_cb,
@@ -571,9 +610,16 @@ class NuitkaMixin:
             self.settings.get("nuitka_standalone", False)
         )
         self.nuitka_onefile_cb.setChecked(self.settings.get("nuitka_onefile", False))
-        self.nuitka_disable_console_cb.setChecked(
-            self.settings.get("nuitka_disable_console", False)
-        )
+
+        # Load console override state
+        self.nuitka_console_cb.setChecked(self.settings.get("nuitka_console_override", False))
+        mode = self.settings.get("nuitka_console_mode", "disable")
+        if mode == "disable":
+            self.console_disable_rb.setChecked(True)
+        elif mode == "force":
+            self.console_force_rb.setChecked(True)
+        else:
+            self.console_attach_rb.setChecked(True)
 
         # Data directories
         data_dirs = self.settings.get("nuitka_include_data_dirs", [])
@@ -645,9 +691,16 @@ class NuitkaMixin:
         self.settings.set("nuitka_output", self.nuitka_output_edit.text().strip())
         self.settings.set("nuitka_standalone", self.nuitka_standalone_cb.isChecked())
         self.settings.set("nuitka_onefile", self.nuitka_onefile_cb.isChecked())
-        self.settings.set(
-            "nuitka_disable_console", self.nuitka_disable_console_cb.isChecked()
-        )
+
+        # Save console override state
+        self.settings.set("nuitka_console_override", self.nuitka_console_cb.isChecked())
+        if self.console_disable_rb.isChecked():
+            mode = "disable"
+        elif self.console_force_rb.isChecked():
+            mode = "force"
+        else:
+            mode = "attach"
+        self.settings.set("nuitka_console_mode", mode)
 
         # Save data directories as list
         data_dirs = [
@@ -711,8 +764,17 @@ class NuitkaMixin:
             args.append("--standalone")
         if self.nuitka_onefile_cb.isChecked():
             args.append("--onefile")
-        if self.nuitka_disable_console_cb.isChecked():
-            args.append("--disable-console")
+
+        # Console mode handling
+        if self.nuitka_console_cb.isChecked():
+            if self.console_disable_rb.isChecked():
+                args.append("--windows-console-mode=disable")
+                if sys.platform == "darwin":
+                    args.append("--macos-disable-console")
+            elif self.console_force_rb.isChecked():
+                args.append("--windows-console-mode=force")
+            elif self.console_attach_rb.isChecked():
+                args.append("--windows-console-mode=attach")
 
         out_dir = self.nuitka_output_edit.text().strip()
         if out_dir:
@@ -839,7 +901,12 @@ class NuitkaMixin:
             "output_dir": self.nuitka_output_edit.text().strip(),
             "standalone": self.nuitka_standalone_cb.isChecked(),
             "onefile": self.nuitka_onefile_cb.isChecked(),
-            "disable_console": self.nuitka_disable_console_cb.isChecked(),
+            "console_override": self.nuitka_console_cb.isChecked(),
+            "console_mode": (
+                "disable" if self.console_disable_rb.isChecked() else
+                "force" if self.console_force_rb.isChecked() else
+                "attach"
+            ),
             "include_data_dirs": [
                 self.data_dirs_list.item(i).text()
                 for i in range(self.data_dirs_list.count())
@@ -896,9 +963,16 @@ class NuitkaMixin:
             self.nuitka_output_edit.setText(data.get("output_dir", ""))
             self.nuitka_standalone_cb.setChecked(data.get("standalone", False))
             self.nuitka_onefile_cb.setChecked(data.get("onefile", False))
-            self.nuitka_disable_console_cb.setChecked(
-                data.get("disable_console", False)
-            )
+
+            # Load console settings
+            self.nuitka_console_cb.setChecked(data.get("console_override", False))
+            mode = data.get("console_mode", "disable")
+            if mode == "disable":
+                self.console_disable_rb.setChecked(True)
+            elif mode == "force":
+                self.console_force_rb.setChecked(True)
+            else:
+                self.console_attach_rb.setChecked(True)
 
             self.data_dirs_list.clear()
             for entry in data.get("include_data_dirs", []):
