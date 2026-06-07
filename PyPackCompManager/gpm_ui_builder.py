@@ -124,6 +124,8 @@ class GlobalPackagesUIMixin:
         self.cmake_presets_group = QGroupBox("CMake Presets")
         cmake_presets_layout = QVBoxLayout(self.cmake_presets_group)
 
+        self.cmake_ninja_cb = QCheckBox("Force CMake to use Ninja (-G Ninja)")
+        self.cmake_ninja_cb.setToolTip("Force Ninja generator instead of Visual Studio. Useful if CUDA/VS integration is missing.")
         self.cmake_cuda_cb = QCheckBox("GGML_CUDA=on (NVIDIA GPU)")
         self.cmake_cuda_cb.setToolTip("Enable CUDA support for GPU acceleration.")
         self.cmake_metal_cb = QCheckBox("GGML_METAL=on (Apple Silicon)")
@@ -143,6 +145,7 @@ class GlobalPackagesUIMixin:
         )
 
         for cb in [
+            self.cmake_ninja_cb,
             self.cmake_cuda_cb,
             self.cmake_metal_cb,
             self.cmake_vulkan_cb,
@@ -152,6 +155,7 @@ class GlobalPackagesUIMixin:
         ]:
             cb.toggled.connect(self._update_cmake_args_from_presets)
 
+        cmake_presets_layout.addWidget(self.cmake_ninja_cb)
         cmake_presets_layout.addWidget(self.cmake_cuda_cb)
         cmake_presets_layout.addWidget(self.cmake_metal_cb)
         cmake_presets_layout.addWidget(self.cmake_vulkan_cb)
@@ -217,6 +221,20 @@ class GlobalPackagesUIMixin:
         )
         self._style_critical_button(self.pypi_build_wheel_btn, "#39A4D6", "#218FC3")
         self.pypi_build_wheel_btn.clicked.connect(self.build_wheel_from_pypi)
+
+        # Enforce state strictly so another process cannot mistakenly enable it
+        original_set_enabled = self.pypi_build_wheel_btn.setEnabled
+        def guarded_set_enabled(enabled):
+            if self.pypi_pm_combo.currentText() != "pip":
+                original_set_enabled(False)
+            else:
+                original_set_enabled(enabled)
+        self.pypi_build_wheel_btn.setEnabled = guarded_set_enabled
+
+        self.pypi_pm_combo.currentTextChanged.connect(
+            lambda text: self.pypi_build_wheel_btn.setEnabled(True)
+        )
+        self.pypi_build_wheel_btn.setEnabled(True)
 
         pypi_layout.addWidget(self.pypi_install_btn)
 
@@ -499,6 +517,7 @@ class GlobalPackagesUIMixin:
         self.pypi_upgrade_cb.setChecked(self.settings.get("pypi_upgrade", True))
 
         # CMake presets
+        self.cmake_ninja_cb.setChecked(self.settings.get("cmake_ninja", False))
         self.cmake_cuda_cb.setChecked(self.settings.get("cmake_cuda", False))
         self.cmake_metal_cb.setChecked(self.settings.get("cmake_metal", False))
         self.cmake_vulkan_cb.setChecked(self.settings.get("cmake_vulkan", False))
@@ -524,6 +543,9 @@ class GlobalPackagesUIMixin:
         # Apply enabled/disabled state of advanced widgets based on checkbox
         self._toggle_advanced_build_widgets(self.build_enabled_cb.isChecked())
 
+        # Sync the Build Wheel button's enabled state with the loaded package manager
+        self.pypi_build_wheel_btn.setEnabled(True)
+
     def _save_global_settings(self):
         self.settings.set("global_package_manager", self.global_pm_combo.currentText())
         self.settings.set("pypi_package_manager", self.pypi_pm_combo.currentText())
@@ -544,6 +566,7 @@ class GlobalPackagesUIMixin:
         self.settings.set("pypi_upgrade", self.pypi_upgrade_cb.isChecked())
 
         # CMake presets
+        self.settings.set("cmake_ninja", self.cmake_ninja_cb.isChecked())
         self.settings.set("cmake_cuda", self.cmake_cuda_cb.isChecked())
         self.settings.set("cmake_metal", self.cmake_metal_cb.isChecked())
         self.settings.set("cmake_vulkan", self.cmake_vulkan_cb.isChecked())

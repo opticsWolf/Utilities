@@ -75,15 +75,15 @@ except Exception:
 
         install_args = ["install"]
 
-        if self.build_enabled_cb.isChecked():
-            if self.pypi_no_cache_cb.isChecked():
-                install_args.append(
-                    "--no-cache" if pm == "uv pip" else "--no-cache-dir"
-                )
-            if self.pypi_force_reinstall_cb.isChecked():
-                install_args.append("--force-reinstall")
-            if self.pypi_upgrade_cb.isChecked():
-                install_args.append("--upgrade")
+        # General installation flags are now read independently of advanced build activation
+        if self.pypi_no_cache_cb.isChecked():
+            install_args.append(
+                "--no-cache" if pm == "uv pip" else "--no-cache-dir"
+            )
+        if self.pypi_force_reinstall_cb.isChecked():
+            install_args.append("--force-reinstall")
+        if self.pypi_upgrade_cb.isChecked():
+            install_args.append("--upgrade")
 
         install_args.append(pkg_name)
 
@@ -120,18 +120,18 @@ except Exception:
 
     # ========== Advanced Build: CMake presets & toggling ==========
     def _toggle_advanced_build_widgets(self, enabled):
-        """Enable or disable all widgets inside the advanced build group."""
+        """Enable or disable only CMake generation widgets inside the advanced build group."""
         self.cmake_presets_group.setEnabled(enabled)
         self.pypi_cmake_args_edit.setEnabled(enabled)
-        self.pypi_no_cache_cb.setEnabled(enabled)
-        self.pypi_force_reinstall_cb.setEnabled(enabled)
-        self.pypi_upgrade_cb.setEnabled(enabled)
+        # Pip install / upgrade flags explicitly excluded here to stay enabled permanently
 
     def _update_cmake_args_from_presets(self):
         """Rebuild CMAKE_ARGS string from checkboxes (if not in manual mode)."""
         if getattr(self, "_cmake_manual_edit", False):
             return
         parts = []
+        if self.cmake_ninja_cb.isChecked():
+            parts.append("-G Ninja")
         if self.cmake_cuda_cb.isChecked():
             parts.append("-DGGML_CUDA=on")
         if self.cmake_metal_cb.isChecked():
@@ -205,14 +205,13 @@ except Exception:
 
         wheel_args = args + ["--wheel-dir", wheel_dir]
 
-        # Add build options if advanced build enabled
-        if self.build_enabled_cb.isChecked():
-            if self.pypi_no_cache_cb.isChecked():
-                wheel_args.append("--no-cache-dir" if pm == "pip" else "--no-cache")
-            if self.pypi_force_reinstall_cb.isChecked():
-                wheel_args.append("--force-reinstall")
-            if self.pypi_upgrade_cb.isChecked():
-                wheel_args.append("--upgrade")
+        # Read layout flags regardless of whether advanced source compilation is globally toggled
+        if self.pypi_no_cache_cb.isChecked():
+            wheel_args.append("--no-cache-dir" if pm == "pip" else "--no-cache")
+        if self.pypi_force_reinstall_cb.isChecked():
+            wheel_args.append("--force-reinstall")
+        if self.pypi_upgrade_cb.isChecked():
+            wheel_args.append("--upgrade")
 
         wheel_args.append(pkg_name)
 

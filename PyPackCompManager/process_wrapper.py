@@ -24,10 +24,14 @@ class EnvProcess(QProcess):
         self.errorOccurred.connect(self._on_error_occurred)
 
     def _on_ready_read(self):
-        raw = self.readAllStandardOutput().data()
-        text = self._decoder.decode(raw)
-        if text:
-            self.output_ready.emit(text)
+        # Loop to consume all currently available bytes in the system pipeline buffer
+        while self.bytesAvailable() > 0:
+            raw = self.readAllStandardOutput().data()
+            if not raw:
+                break
+            text = self._decoder.decode(raw)
+            if text:
+                self.output_ready.emit(text)
 
     def _flush_decoder(self):
         """Emit any bytes the incremental decoder was still holding."""
@@ -83,31 +87,74 @@ class EnvProcess(QProcess):
 
         qenv = QProcessEnvironment.systemEnvironment()
 
-        # ----- FORCE UNBUFFERED OUTPUT (especially for Python) -----
+        # ----- FORCE UNBUFFERED OUTPUT (For Python, Pip, UV and CLI tools) -----
         qenv.insert("PYTHONUNBUFFERED", "1")
         qenv.insert("PYTHONIOENCODING", "utf-8")
-        # -----------------------------------------------------------
+        qenv.insert("FORCE_COLOR", "1")        # Force CLI frameworks to unbuffer and retain formatting
+        qenv.insert("PIP_NO_INPUT", "1")       # Ensure pip does not buffer waiting for silent inputs
+        qenv.insert("UV_NO_PROGRESS", "1")     # Force uv globally to use clean, line-based output
+        # --------------------------------------------------------------------
 
-        if env_data and env_data.get("type") == "venv":
-            path_val = env_data["path"]
-            venv_bin = os.path.join(path_val, "Scripts" if os.name == "nt" else "bin")
+        if env_data:
+            env_type = env_data.get("type")
+            path_val = env_data.get("path")
+            
+            # Standard Virtual Environment (venv) handling
+            if env_type == "venv" and path_val:
+                venv_bin = os.path.join(path_val, "Scripts" if os.name == "nt" else "bin")
 
-            qenv.insert("VIRTUAL_ENV", path_val)
-            qenv.insert("PATH", venv_bin + os.pathsep + qenv.value("PATH"))
+                qenv.insert("VIRTUAL_ENV", path_val)
+                qenv.insert("PATH", venv_bin + os.pathsep + qenv.value("PATH"))
 
-            # Safely determine the executable name (avoid double .exe on Windows)
-            if os.name == "nt":
-                # On Windows, if program doesn't already end with .exe, add it
-                if not program.lower().endswith(".exe"):
-                    prog_exe = program + ".exe"
+                # Safely determine the executable name (avoid double .exe on Windows)
+                if os.name == "nt":
+                    # On Windows, if program doesn't already end with .exe, add it
+                    if not program.lower().endswith(".exe"):
+                        prog_exe = program + ".exe"
+                    else:
+                        prog_exe = program
                 else:
                     prog_exe = program
-            else:
-                prog_exe = program
 
-            abs_prog = os.path.join(venv_bin, prog_exe)
-            if os.path.exists(abs_prog):
-                program = abs_prog
+                abs_prog = os.path.join(venv_bin, prog_exe)
+                if os.path.exists(abs_prog):
+                    program = abs_prog
+            
+            # Conda Environment path injection bypass
+            elif env_type == "conda" and path_val:
+                qenv.insert("CONDA_PREFIX", path_val)
+                
+                if os.name == "nt":
+                    conda_bins = [
+                        path_val,
+                        os.path.join(path_val, "Scripts"),
+                        os.path.join(path_val, "Library", "bin"),
+                        os.path.join(path_val, "Library", "usr", "bin"),
+                        os.path.join(path_val, "Library", "mingw-w64", "bin"),
+                    ]
+                    # Filter existing directories and inject into process PATH
+                    conda_paths = [p for p in conda_bins if os.path.exists(p)]
+                    if conda_paths:
+                        qenv.insert("PATH", os.pathsep.join(conda_paths) + os.pathsep + qenv.value("PATH"))
+                    
+                    if not program.lower().endswith(".exe"):
+                        prog_exe = program + ".exe"
+                    else:
+                        prog_exe = program
+                        
+                    # Locate and bind the raw executable within Conda directories
+                    for bin_dir in conda_bins:
+                        abs_path = os.path.join(bin_dir, prog_exe)
+                        if os.path.exists(abs_path):
+                            program = abs_path
+                            break
+                else:
+                    conda_bin = os.path.join(path_val, "bin")
+                    qenv.insert("PATH", conda_bin + os.pathsep + qenv.value("PATH"))
+                    
+                    abs_prog = os.path.join(conda_bin, program)
+                    if os.path.exists(abs_prog):
+                        program = abs_prog
 
         if rustflags:
             qenv.insert("RUSTFLAGS", rustflags)

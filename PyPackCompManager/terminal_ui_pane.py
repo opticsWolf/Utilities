@@ -166,6 +166,36 @@ class TerminalMixin:
         if not hasattr(self, "_interactive_session"):
             self._interactive_session = False
 
+    def _build_env_command(self, program, args, env_data=None):
+        """Preprocesses executable arguments to guarantee line buffering, unbuffered execution, and progress logging corrections."""
+        args = list(args)
+
+        # 1. Conda run buffering: add --live-stream if we run via conda run
+        if program == "conda" and len(args) > 0 and args[0] == "run":
+            if "--live-stream" not in args:
+                args.insert(1, "--live-stream")
+
+        # 2. Python buffering & Pip normalization:
+        # Change pip invocations from pip install ... to python -u -m pip install ...
+        # This ensures PYTHONUNBUFFERED=1 takes full effect.
+        is_pip_cmd = (program == "pip" or (len(args) > 0 and args[0] == "pip"))
+        if is_pip_cmd:
+            if program == "pip":
+                program = "python"
+                if sys.platform == "win32":
+                    args = ["-u", "-m", "pip"] + args
+                else:
+                    args = ["-m", "pip"] + args
+            elif len(args) > 0 and args[0] == "pip":
+                if program in ("python", "python3") or program.endswith("python") or program.endswith("python.exe"):
+                    if sys.platform == "win32" and "-u" not in args:
+                        args.insert(0, "-u")
+
+        # Automatic stripping of pip and uv progress arguments has been removed
+        # to allow native progress animations to render properly on screen.
+
+        return program, args, env_data
+
     def _load_terminal_settings(self):
         if not self.settings:
             return
@@ -258,7 +288,10 @@ class TerminalMixin:
     def _ansi_to_html(self, text):
         self._init_attributes()
         text = re.sub(r"\x1B\].*?(?:\x07|\x1B\\)", "", text)
-        text = re.sub(r"\x1B\[[0-9;?]*[^m]", "", text)
+        
+        # Matches any non-color CSI sequence safely ending in a letter while excluding lowercase 'm'
+        text = re.sub(r"\x1B\[[0-9;?]*[a-ln-zA-Z]", "", text)
+        
         text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         text = text.replace(" ", "&nbsp;")
 
@@ -334,6 +367,7 @@ class TerminalMixin:
         self.output_text.verticalScrollBar().setValue(
             self.output_text.verticalScrollBar().maximum()
         )
+        self.output_text.repaint()
 
     def _start_default_shell(self):
         if sys.platform == "win32":
@@ -410,8 +444,10 @@ class TerminalMixin:
         """Write a temp .bat that initialises MSVC then runs inner_cmd.
 
         Returns (program, args) ready for the process, i.e. ('cmd.exe',
-        ['/c', <batch_path>]). The batch path is a single argument, so it
+        ['/D', '/C', <batch_path>]). The batch path is a single argument, so it
         survives QProcess quoting intact even when it contains spaces.
+        The '/D' flag disables command execution from AutoRun registry settings,
+        preventing I/O flow pipeline delays.
         """
         fd, bat_path = tempfile.mkstemp(prefix="msvc_run_", suffix=".bat")
         with os.fdopen(fd, "w") as f:
@@ -426,7 +462,7 @@ class TerminalMixin:
             f.write(f"{inner_cmd}\r\n")
         # Remember it so it can be removed once the command finishes.
         self._msvc_temp_bat = bat_path
-        return "cmd.exe", ["/c", bat_path]
+        return "cmd.exe", ["/D", "/C", bat_path]
 
     def _cleanup_msvc_temp_bat(self):
         """Delete the temporary MSVC batch file, if one was created."""
@@ -486,6 +522,10 @@ class TerminalMixin:
         interactive=False,
     ):
         self._init_attributes()
+        
+        # Intercept and correct commands to guarantee unbuffered Python and line-based logging
+        program, args, env_data = self._build_env_command(program, args, env_data)
+
         # Close anything already running (e.g. an idle interactive shell) before
         # starting this command, so the old process can't bleed output into the
         # new one or fire its finished handler over the top of it.
@@ -538,7 +578,7 @@ class TerminalMixin:
                 self._log_terminal(
                     f">>> Initializing MSVC Environment via: {vcvars_path}\n"
                 )
-                # Write a small batch file and run it via `cmd /c <file>` instead
+                # Write a small batch file and run it via `cmd /D /C <file>` instead
                 # of passing a hand-quoted command string. Passing a complex
                 # quoted string as a single QProcess argument causes Qt to quote
                 # it again (turning "C:\..." into "\"C:\...\""), which cmd.exe
@@ -684,6 +724,9 @@ class TerminalMixin:
 
         scrollbar = self.output_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+
+        # Force PySide to push updates instantly to the desktop display window
+        self.output_text.repaint()
 
         regex_pattern = r"([^\n]+(?:\[?y(?:es)?\]?/\[?n(?:o)?\]?(?:/\[?q(?:uit)?\]?)?|\(y(?:es)?/n(?:o)?(?:/q(?:uit)?)?\))[\s\?:]*)$"
         prompt_match = re.search(regex_pattern, data, re.IGNORECASE)
