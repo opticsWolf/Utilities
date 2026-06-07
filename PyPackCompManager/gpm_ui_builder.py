@@ -80,9 +80,9 @@ class GlobalPackagesUIMixin:
         # Search box
         pypi_search_layout = QHBoxLayout()
         self.pypi_search_edit = QLineEdit()
-        self.pypi_search_edit.setPlaceholderText("e.g. llama-cpp-python")
+        self.pypi_search_edit.setPlaceholderText("e.g. package_name or requirements.txt")
         self.pypi_search_edit.setToolTip(
-            "Enter the exact package name to look up on PyPI."
+            "Enter a package name or select a requirements file."
         )
         self.pypi_search_edit.returnPressed.connect(self.search_pypi_info)
 
@@ -93,8 +93,14 @@ class GlobalPackagesUIMixin:
         self.pypi_search_btn.clicked.connect(self.search_pypi_info)
         self._style_square_icon_button(self.pypi_search_btn)
 
+        self.pypi_browse_req_btn = QPushButton("📄")
+        self.pypi_browse_req_btn.setToolTip("Select a requirements file (.txt or pyproject.toml)")
+        self.pypi_browse_req_btn.clicked.connect(self._browse_pypi_req_file)
+        self._style_square_icon_button(self.pypi_browse_req_btn)
+
         pypi_search_layout.addWidget(self.pypi_search_edit)
         pypi_search_layout.addWidget(self.pypi_search_btn)
+        pypi_search_layout.addWidget(self.pypi_browse_req_btn)
         pypi_layout.addLayout(pypi_search_layout)
 
         self.pypi_info_label = QLabel("Enter a package name to search.")
@@ -282,9 +288,9 @@ class GlobalPackagesUIMixin:
 
         conda_search_layout = QHBoxLayout()
         self.conda_search_edit = QLineEdit()
-        self.conda_search_edit.setPlaceholderText("e.g. numpy")
+        self.conda_search_edit.setPlaceholderText("e.g. numpy or requirements.txt")
         self.conda_search_edit.setToolTip(
-            "Enter the exact package name to look up on Conda."
+            "Enter a package name or select a requirements file."
         )
         self.conda_search_edit.returnPressed.connect(self.search_conda_info)
 
@@ -295,8 +301,14 @@ class GlobalPackagesUIMixin:
         self.conda_search_btn.clicked.connect(self.search_conda_info)
         self._style_square_icon_button(self.conda_search_btn)
 
+        self.conda_browse_req_btn = QPushButton("📄")
+        self.conda_browse_req_btn.setToolTip("Select a Conda requirements file (.txt, .yml)")
+        self.conda_browse_req_btn.clicked.connect(self._browse_conda_req_file)
+        self._style_square_icon_button(self.conda_browse_req_btn)
+
         conda_search_layout.addWidget(self.conda_search_edit)
         conda_search_layout.addWidget(self.conda_search_btn)
+        conda_search_layout.addWidget(self.conda_browse_req_btn)
         conda_layout.addLayout(conda_search_layout)
 
         self.conda_info_label = QLabel("Enter a package name to search via conda.")
@@ -582,3 +594,19 @@ class GlobalPackagesUIMixin:
 
         # Expansion state
         self.settings.set("pypi_build_expanded", self.build_group.is_expanded)
+
+    def _browse_pypi_req_file(self):
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select Requirements File", "", "Requirements/Project (*.txt *.toml);;All Files (*)"
+        )
+        if path:
+            self.pypi_search_edit.setText(path)
+
+    def _browse_conda_req_file(self):
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select Conda Requirements File", "", "Requirements (*.txt *.yml *.yaml);;All Files (*)"
+        )
+        if path:
+            self.conda_search_edit.setText(path)

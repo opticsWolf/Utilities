@@ -7,8 +7,10 @@ uninstall / update across pip, uv pip and conda.
 
 import os
 import json
+import re
+import sys
 
-from PySide6.QtCore import QProcess, QProcessEnvironment
+from PySide6.QtCore import Qt, QProcess, QProcessEnvironment
 from PySide6.QtWidgets import QMessageBox
 
 
@@ -19,6 +21,12 @@ class CondaInstalledMixin:
     def search_conda_info(self):
         pkg = self.conda_search_edit.text().strip()
         if not pkg:
+            return
+
+        if os.path.isfile(pkg):
+            self.conda_info_label.setText(
+                "Local file selected. Ready to install from requirements."
+            )
             return
 
         env_data = self.get_selected_env_data()
@@ -77,15 +85,87 @@ class CondaInstalledMixin:
                 v = latest.get("version", "unknown")
                 c = latest.get("channel", "unknown")
                 b = latest.get("build", "unknown")
+
+                # Conda's JSON output for 'channel' is often a full URL.
+                # We need to extract just the channel name to construct a valid anaconda.org URL.
+                selected_channel = self.conda_channel_combo.currentText().strip()
+                channel_name = selected_channel
+                
+                if c and c != "unknown":
+                    if "conda.anaconda.org/" in c:
+                        channel_name = c.split("conda.anaconda.org/")[1].split("/")[0]
+                    elif "repo.anaconda.com/pkgs/" in c:
+                        channel_name = c.split("repo.anaconda.com/pkgs/")[1].split("/")[0]
+                        if channel_name == "main":
+                            channel_name = "anaconda"  # 'main' maps to 'anaconda' on anaconda.org
+                    elif not c.startswith("http"):
+                        channel_name = c.split("/")[0]
+                
+                # If they explicitly searched 'defaults', map it to Anaconda's main page
+                if channel_name == "defaults":
+                    channel_name = "anaconda"
+
+                anaconda_url = f"https://anaconda.org/{channel_name}/{pkg}"
+                anaconda_link = f'<br><a href="{anaconda_url}" target="_blank" style="color: #039BE5; text-decoration: underline;">📦 Conda Package Page</a>'
+
+                # Store package, version, and channel for homepage fetch
+                self._last_conda_pkg = pkg
+                self._last_conda_version = v
+                self._last_conda_channel = c
+
+                # Display basic info + Anaconda link
+                self.conda_info_label.setTextFormat(Qt.RichText)
                 self.conda_info_label.setText(
-                    f"<b>Version:</b> {v}<br><b>Build:</b> {b}<br><b>Channel:</b> {c}"
+                    f"<b>Version:</b> {v}<br><b>Build:</b> {b}<br><b>Channel:</b> {c}{anaconda_link}"
                 )
+                self.conda_info_label.setOpenExternalLinks(True)
+
+                # Fetch homepage asynchronously (if not already fetched)
+                if not hasattr(self, "_homepage_fetched_for_pkg") or self._homepage_fetched_for_pkg != pkg:
+                    self._homepage_fetched_for_pkg = pkg
+                    self._fetch_conda_homepage(pkg, channel_name)
             else:
                 self.conda_info_label.setText(
                     "Package found but no version info available."
                 )
-        except Exception:
-            self.conda_info_label.setText("Package not found or error parsing results.")
+        except Exception as e:
+            self.conda_info_label.setText(f"Package not found or error parsing results: {str(e)}")
+
+    def _fetch_conda_homepage(self, pkg, channel_name):
+        """Fetch the home page URL using the Anaconda API for lightning-fast results."""
+        code = f"""
+import urllib.request, json
+try:
+    req = urllib.request.Request('https://api.anaconda.org/package/{channel_name}/{pkg}', headers={{'User-Agent': 'Mozilla/5.0'}})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        d = json.loads(r.read().decode())
+        h = d.get('home', '')
+        print(h if h else 'NOT_FOUND')
+except Exception:
+    print('NOT_FOUND')
+"""
+        self._conda_info_proc = QProcess(self)
+        self._conda_info_proc_output = ""
+        self._conda_info_proc.readyReadStandardOutput.connect(
+            lambda: setattr(
+                self,
+                "_conda_info_proc_output",
+                self._conda_info_proc_output
+                + self._conda_info_proc.readAllStandardOutput().data().decode("utf-8", errors="replace"),
+            )
+        )
+        self._conda_info_proc.finished.connect(self._on_conda_info_finished)
+        self._conda_info_proc.start(sys.executable, ["-c", code])
+
+    def _on_conda_info_finished(self):
+        output = self._conda_info_proc_output.strip()
+        if output and output != "NOT_FOUND" and output.startswith("http"):
+            current_text = self.conda_info_label.text()
+            # Avoid adding duplicate homepage link if it's already present (or same as Anaconda link)
+            if "🌐 Project Homepage" not in current_text:
+                homepage_link = f'<br><a href="{output}" target="_blank" style="color: #039BE5; text-decoration: underline;">🌐 Project Homepage</a>'
+                self.conda_info_label.setText(current_text + homepage_link)
+                self.conda_info_label.setOpenExternalLinks(True)
 
     # ========== Conda Install ==========
     def install_from_conda_tab(self):
@@ -106,15 +186,23 @@ class CondaInstalledMixin:
 
         program = env_data["exe"]
         channel = self.conda_channel_combo.currentText().strip()
-        args = ["install", "-n", env_data["name"], pkg_name, "-y"]
+
+        args = ["install", "-n", env_data["name"], "-y"]
         if channel and channel != "defaults":
             args.extend(["-c", channel])
+
+        if os.path.isfile(pkg_name) and pkg_name.endswith((".txt", ".yml", ".yaml")):
+            args.extend(["--file", pkg_name])
+            cmd_display = f"conda install --file {pkg_name} (channel: {channel})"
+        else:
+            args.append(pkg_name)
+            cmd_display = f"conda install {pkg_name} (channel: {channel})"
 
         self.run_command(
             program,
             args,
             None,
-            f"conda install {pkg_name} (channel: {channel})",
+            cmd_display,
             env_data,
             refresh_packages=True,
         )
@@ -223,7 +311,6 @@ class CondaInstalledMixin:
         self._update_installed_list()
 
     def _update_installed_list(self):
-        """Refresh the list widget according to the current filter text."""
         self.installed_list.clear()
         filter_text = (
             self.installed_filter_edit.text().strip()
@@ -242,7 +329,6 @@ class CondaInstalledMixin:
                 self.installed_list.addItem(display)
 
     def _filter_installed_packages(self):
-        """Called when the filter text changes."""
         if hasattr(self, "_installed_packages_raw"):
             self._update_installed_list()
 

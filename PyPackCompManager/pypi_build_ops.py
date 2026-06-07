@@ -7,7 +7,7 @@ consumed directly by the PyPI install and wheel commands.
 import os
 import sys
 
-from PySide6.QtCore import QProcess
+from PySide6.QtCore import Qt, QProcess
 from PySide6.QtWidgets import QMessageBox, QFileDialog
 
 
@@ -19,17 +19,42 @@ class PyPIBuildMixin:
         pkg = self.pypi_search_edit.text().strip()
         if not pkg:
             return
+            
+        if os.path.isfile(pkg) or os.path.isdir(pkg):
+            self.pypi_info_label.setText("Local path selected. Ready to install/build from file.")
+            return
+
         self.pypi_info_label.setText("Searching PyPI...")
 
+        # Fixed embedded script: handles "UNKNOWN", null project_urls, case-insensitive keys, and newlines
         code = f"""
 import urllib.request, json
 try:
     req = urllib.request.Request('https://pypi.org/pypi/{pkg}/json', headers={{'User-Agent': 'Mozilla/5.0'}})
     with urllib.request.urlopen(req, timeout=5) as r:
         d = json.loads(r.read().decode())
-        v = d.get('info', {{}}).get('version', 'unknown')
-        s = d.get('info', {{}}).get('summary', 'No summary')
-        print(v + "|||" + s)
+        info = d.get('info', {{}})
+        
+        # 1. Safely extract version and summary (stripping newlines to protect the ||| split)
+        v = info.get('version', 'unknown')
+        s = str(info.get('summary', 'No summary')).replace('\\n', ' ')
+        
+        # 2. Handle the "UNKNOWN" fallback
+        h = info.get('home_page')
+        if not h or h == 'UNKNOWN':
+            # 3. Handle null project_urls safely using `or {{}}`
+            urls = info.get('project_urls') or {{}}
+            
+            # 4. Normalize keys to lowercase for case-insensitive matching
+            urls_lower = {{k.lower(): val for k, val in urls.items()}}
+            
+            # 5. Check common URL keys
+            h = urls_lower.get('homepage') or urls_lower.get('home') or urls_lower.get('repository') or urls_lower.get('source') or ''
+            
+        if not h:
+            h = ''
+            
+        print(v + "|||" + s + "|||" + str(h).strip())
 except Exception:
     print("NOT_FOUND")
 """
@@ -57,11 +82,32 @@ except Exception:
         out = self._pypi_proc_output.strip()
         if out == "NOT_FOUND" or not out:
             self.pypi_info_label.setText("Package not found on PyPI.")
-        elif "|||" in out:
-            v, s = out.split("|||", 1)
-            self.pypi_info_label.setText(f"<b>Version:</b> {v}<br><b>Summary:</b> {s}")
-        else:
+            return
+
+        if "|||" not in out:
             self.pypi_info_label.setText("Error retrieving info.")
+            return
+
+        parts = out.split("|||")
+        pkg_name = self.pypi_search_edit.text().strip()
+        v = parts[0]
+        s = parts[1]
+        homepage = parts[2] if len(parts) > 2 else ""
+
+        # Always add a link to the PyPI project page
+        pypi_link = f'<br><a href="https://pypi.org/project/{pkg_name}/" target="_blank" style="color: #039BE5; text-decoration: underline;">📦 PyPI Project Page</a>'
+        
+        # Add homepage link if available and valid
+        if homepage and homepage.startswith("http"):
+            homepage_link = f'<br><a href="{homepage}" target="_blank" style="color: #039BE5; text-decoration: underline;">🌐 Project Homepage</a>'
+        else:
+            homepage_link = ""
+
+        self.pypi_info_label.setTextFormat(Qt.RichText)
+        self.pypi_info_label.setText(
+            f"<b>Version:</b> {v}<br><b>Summary:</b> {s}{homepage_link}{pypi_link}"
+        )
+        self.pypi_info_label.setOpenExternalLinks(True)
 
     # ========== PyPI Install ==========
     def install_from_pypi(self):
@@ -75,7 +121,7 @@ except Exception:
 
         install_args = ["install"]
 
-        # General installation flags are now read independently of advanced build activation
+        # General installation flags
         if self.pypi_no_cache_cb.isChecked():
             install_args.append(
                 "--no-cache" if pm == "uv pip" else "--no-cache-dir"
@@ -85,7 +131,18 @@ except Exception:
         if self.pypi_upgrade_cb.isChecked():
             install_args.append("--upgrade")
 
-        install_args.append(pkg_name)
+        # Handle local files and requirements lists
+        if os.path.isfile(pkg_name):
+            if pkg_name.endswith('.txt'):
+                install_args.extend(["-r", pkg_name])
+            elif pkg_name.endswith('.toml'):
+                install_args.append(os.path.dirname(pkg_name))
+            else:
+                install_args.append(pkg_name)
+        elif os.path.isdir(pkg_name):
+            install_args.append(pkg_name)
+        else:
+            install_args.append(pkg_name)
 
         if pm == "pip":
             program, args, _ = self._build_env_command("pip", install_args)
@@ -120,13 +177,10 @@ except Exception:
 
     # ========== Advanced Build: CMake presets & toggling ==========
     def _toggle_advanced_build_widgets(self, enabled):
-        """Enable or disable only CMake generation widgets inside the advanced build group."""
         self.cmake_presets_group.setEnabled(enabled)
         self.pypi_cmake_args_edit.setEnabled(enabled)
-        # Pip install / upgrade flags explicitly excluded here to stay enabled permanently
 
     def _update_cmake_args_from_presets(self):
-        """Rebuild CMAKE_ARGS string from checkboxes (if not in manual mode)."""
         if getattr(self, "_cmake_manual_edit", False):
             return
         parts = []
@@ -142,7 +196,6 @@ except Exception:
             parts.append("-DGGML_OPENBLAS=on")
         if self.cmake_clblast_cb.isChecked():
             parts.append("-DGGML_CLBLAST=on")
-
         if self.cmake_unsupported_compiler_cb.isChecked():
             parts.append('-DCMAKE_CUDA_FLAGS="-allow-unsupported-compiler"')
 
@@ -153,7 +206,6 @@ except Exception:
             self.pypi_cmake_args_edit.blockSignals(False)
 
     def _on_cmake_args_manually_edited(self):
-        """User manually edited the CMAKE_ARGS line edit – disable auto-overwrite."""
         self._cmake_manual_edit = True
 
     # ========== Wheel Building ==========
@@ -195,7 +247,6 @@ except Exception:
             )
             return
 
-        # Build wheel command
         if pm == "pip":
             program, args, _ = self._build_env_command("pip", ["wheel"])
         elif pm == "uv pip":
@@ -205,7 +256,6 @@ except Exception:
 
         wheel_args = args + ["--wheel-dir", wheel_dir]
 
-        # Read layout flags regardless of whether advanced source compilation is globally toggled
         if self.pypi_no_cache_cb.isChecked():
             wheel_args.append("--no-cache-dir" if pm == "pip" else "--no-cache")
         if self.pypi_force_reinstall_cb.isChecked():
@@ -213,7 +263,17 @@ except Exception:
         if self.pypi_upgrade_cb.isChecked():
             wheel_args.append("--upgrade")
 
-        wheel_args.append(pkg_name)
+        if os.path.isfile(pkg_name):
+            if pkg_name.endswith('.txt'):
+                wheel_args.extend(["-r", pkg_name])
+            elif pkg_name.endswith('.toml'):
+                wheel_args.append(os.path.dirname(pkg_name))
+            else:
+                wheel_args.append(pkg_name)
+        elif os.path.isdir(pkg_name):
+            wheel_args.append(pkg_name)
+        else:
+            wheel_args.append(pkg_name)
 
         extra_env = {}
         require_msvc = False
