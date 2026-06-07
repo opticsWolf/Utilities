@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 import os
 from PySide6.QtWidgets import QMainWindow, QApplication
@@ -34,7 +35,7 @@ class MainWindow(
         self.setMinimumSize(1000, 700)
 
         # Load and set the window icon
-        icon_path = os.path.join(os.path.dirname(__file__), "icon.svg")
+        icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
@@ -83,6 +84,7 @@ class MainWindow(
             self._load_nuitka_settings()
             self._load_local_settings()
             self._load_global_settings()
+            self._load_terminal_settings()
         
             # Restore window geometry (size/position) and state (dock layouts)
             geometry_b64 = self.settings.get("window_geometry", "")
@@ -105,6 +107,7 @@ class MainWindow(
         self._save_nuitka_settings()
         self._save_local_settings()
         self._save_global_settings()
+        self._save_terminal_settings()
 
         # Save window geometry and state as base64 strings so JSON can store them
         geom = self.saveGeometry().toBase64().data().decode('utf-8')
@@ -126,7 +129,7 @@ def main():
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle("Fusion")
     # Set application icon (affects taskbar/dock)
-    icon_path = os.path.join(os.path.dirname(__file__), "icon.svg")
+    icon_path = os.path.join(os.path.dirname(__file__), "icon.ico")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     window = MainWindow()

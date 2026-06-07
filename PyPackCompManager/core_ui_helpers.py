@@ -1,5 +1,6 @@
 from pathlib import Path
-from PySide6.QtCore import QDir
+from PySide6.QtCore import QDir, Qt
+from PySide6.QtWidgets import QGroupBox, QWidget, QVBoxLayout
 
 class CoreUIMixin:
     """Contains shared generic UI styling and path helper methods."""
@@ -58,3 +59,53 @@ class CoreUIMixin:
         for btn in btn_names:
             if hasattr(self, btn):
                 getattr(self, btn).setEnabled(enabled)
+
+
+class CollapsibleGroupBox(QGroupBox):
+    """A native-looking QGroupBox that toggles its content when the title is clicked."""
+    
+    def __init__(self, title, parent=None):
+        super().__init__(parent)
+        self._base_title = title
+        self.is_expanded = True
+
+        # Create the internal widget that will be hidden/shown
+        self.content_widget = QWidget()
+
+        # Main layout for the QGroupBox itself
+        self._main_layout = QVBoxLayout(self)
+        self._main_layout.setContentsMargins(3, 3, 3, 3)   
+        self._main_layout.addWidget(self.content_widget)
+
+        self._update_title()
+
+    def _update_title(self):
+        # FIXED: Changed the collapsed indicator to a right-pointing arrow
+        indicator = "▾" if self.is_expanded else "▸"
+        self.setTitle(f"{indicator}  {self._base_title}")
+
+    def mousePressEvent(self, event):
+        # Intercept clicks on the top area of the group box
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Dynamically calculate the title area height based on font size
+            title_height = self.fontMetrics().height()
+
+            # If the click happens in the top area, toggle visibility
+            if event.position().y() <= title_height:
+                self.is_expanded = not self.is_expanded
+                self.content_widget.setVisible(self.is_expanded)
+                self._update_title()
+
+                # --- OPTIMIZATION FOR A VERY THIN BOX ---
+                if self.is_expanded:
+                    # Remove height restriction when expanded (16777215 is QWIDGETSIZE_MAX)
+                    self.setMaximumHeight(16777215) 
+                else:
+                    # Clamp the maximum height to just the title area and top margin when collapsed
+                    self.setMaximumHeight(title_height + self._main_layout.contentsMargins().top())
+
+                event.accept()
+                return
+
+        # Pass any other clicks (inside the widget) to the base class
+        super().mousePressEvent(event)

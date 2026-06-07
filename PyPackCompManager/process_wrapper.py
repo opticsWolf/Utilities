@@ -8,7 +8,8 @@ class EnvProcess(QProcess):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setProcessChannelMode(QProcess.MergedChannels)
+        # Use fully scoped enum for PySide6
+        self.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.readyReadStandardOutput.connect(self._on_ready_read)
         self.finished.connect(self._on_finished)
 
@@ -22,23 +23,38 @@ class EnvProcess(QProcess):
     def write_input(self, text: str):
         """Writes string data to the standard input of the running process."""
         if self.state() == QProcess.ProcessState.Running:
-            # QProcess expects byte data; encode the string to UTF-8
             self.write(text.encode('utf-8'))
+            # Force the data to be sent immediately to the OS pipe
+            self.waitForBytesWritten(50)
 
     def run_command(self, program, args, working_dir=None, env_data=None, rustflags=None):
         if working_dir:
             self.setWorkingDirectory(working_dir)
-            
+
         qenv = QProcessEnvironment.systemEnvironment()
+
+        # ----- FORCE UNBUFFERED OUTPUT (especially for Python) -----
+        qenv.insert("PYTHONUNBUFFERED", "1")
+        qenv.insert("PYTHONIOENCODING", "utf-8")
+        # -----------------------------------------------------------
 
         if env_data and env_data.get("type") == "venv":
             path_val = env_data["path"]
             venv_bin = os.path.join(path_val, "Scripts" if os.name == "nt" else "bin")
-            
+
             qenv.insert("VIRTUAL_ENV", path_val)
             qenv.insert("PATH", venv_bin + os.pathsep + qenv.value("PATH"))
-            
-            prog_exe = program + (".exe" if os.name == "nt" else "")
+
+            # Safely determine the executable name (avoid double .exe on Windows)
+            if os.name == "nt":
+                # On Windows, if program doesn't already end with .exe, add it
+                if not program.lower().endswith(".exe"):
+                    prog_exe = program + ".exe"
+                else:
+                    prog_exe = program
+            else:
+                prog_exe = program
+
             abs_prog = os.path.join(venv_bin, prog_exe)
             if os.path.exists(abs_prog):
                 program = abs_prog
