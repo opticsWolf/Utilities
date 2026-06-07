@@ -1,9 +1,10 @@
 import os
 import json
 
+
 class Settings:
     """Handles loading and saving of application settings dynamically without hardcoded keys."""
-    
+
     def __init__(self, filename="settings.json"):
         self.filename = filename
         self.data = {}
@@ -13,7 +14,7 @@ class Settings:
         if not os.path.exists(self.filename):
             return
         try:
-            with open(self.filename, 'r', encoding='utf-8') as f:
+            with open(self.filename, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
                 if isinstance(loaded, dict):
                     self.data = loaded
@@ -22,7 +23,7 @@ class Settings:
 
     def save(self):
         try:
-            with open(self.filename, 'w', encoding='utf-8') as f:
+            with open(self.filename, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=4)
         except Exception as e:
             print(f"Error saving settings: {e}")

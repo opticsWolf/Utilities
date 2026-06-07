@@ -1,12 +1,26 @@
 import os
 import sys
 import json
-from PySide6.QtWidgets import (QDockWidget, QScrollArea, QWidget, QVBoxLayout,
-                               QHBoxLayout, QFormLayout, QTabWidget,
-                               QGroupBox, QLineEdit, QPushButton,
-                               QComboBox, QCheckBox, QLabel, QPlainTextEdit,
-                               QFileDialog, QMessageBox, QSpinBox, QListWidget,
-                               QInputDialog, QSizePolicy)
+from PySide6.QtWidgets import (
+    QDockWidget,
+    QScrollArea,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QTabWidget,
+    QGroupBox,
+    QLineEdit,
+    QPushButton,
+    QCheckBox,
+    QLabel,
+    QPlainTextEdit,
+    QFileDialog,
+    QMessageBox,
+    QSpinBox,
+    QListWidget,
+    QInputDialog,
+)
 from PySide6.QtCore import Qt
 from core_ui_helpers import CollapsibleGroupBox
 
@@ -41,11 +55,15 @@ class NuitkaMixin:
 
         self.nuitka_entry_edit = QLineEdit()
         self.nuitka_entry_edit.setPlaceholderText("main.py")
-        self.nuitka_entry_edit.setToolTip("The main Python script execution starts from. This is the entry point file Nuitka will compile.")
+        self.nuitka_entry_edit.setToolTip(
+            "The main Python script execution starts from. This is the entry point file Nuitka will compile."
+        )
         entry_layout = QHBoxLayout()
         entry_layout.addWidget(self.nuitka_entry_edit)
         entry_browse_btn = QPushButton("📄")
-        entry_browse_btn.setToolTip("Browse the filesystem to select your main entry Python script.")
+        entry_browse_btn.setToolTip(
+            "Browse the filesystem to select your main entry Python script."
+        )
         entry_browse_btn.clicked.connect(self._browse_entry_script)
         self._style_square_icon_button(entry_browse_btn)
         entry_layout.addWidget(entry_browse_btn)
@@ -53,11 +71,15 @@ class NuitkaMixin:
 
         self.nuitka_output_edit = QLineEdit()
         self.nuitka_output_edit.setPlaceholderText("build_out")
-        self.nuitka_output_edit.setToolTip("(--output-dir)\nDirectory where Nuitka will store intermediate build C++ files and final compiled binaries.")
+        self.nuitka_output_edit.setToolTip(
+            "(--output-dir)\nDirectory where Nuitka will store intermediate build C++ files and final compiled binaries."
+        )
         out_layout = QHBoxLayout()
         out_layout.addWidget(self.nuitka_output_edit)
         out_browse_btn = QPushButton("📂")
-        out_browse_btn.setToolTip("Browse the filesystem to select or create your compilation output directory.")
+        out_browse_btn.setToolTip(
+            "Browse the filesystem to select or create your compilation output directory."
+        )
         out_browse_btn.clicked.connect(self._browse_output_dir)
         self._style_square_icon_button(out_browse_btn)
         out_layout.addWidget(out_browse_btn)
@@ -68,16 +90,22 @@ class NuitkaMixin:
         # --- Build Modes ---
         modes_group = QGroupBox("Build Modes")
         modes_layout = QVBoxLayout(modes_group)
-        
+
         self.nuitka_standalone_cb = QCheckBox("--standalone")
-        self.nuitka_standalone_cb.setToolTip("Enable standalone mode. This builds an output folder containing the executable along with all required dynamic libraries (.dll/.so/.dylib) so it can run on other machines without a Python installation.")
-        
+        self.nuitka_standalone_cb.setToolTip(
+            "Enable standalone mode. This builds an output folder containing the executable along with all required dynamic libraries (.dll/.so/.dylib) so it can run on other machines without a Python installation."
+        )
+
         self.nuitka_onefile_cb = QCheckBox("--onefile")
-        self.nuitka_onefile_cb.setToolTip("Enable onefile mode. Packs the standalone distribution into a single executable file. It unpacks itself to a temporary directory at runtime.")
-        
+        self.nuitka_onefile_cb.setToolTip(
+            "Enable onefile mode. Packs the standalone distribution into a single executable file. It unpacks itself to a temporary directory at runtime."
+        )
+
         self.nuitka_disable_console_cb = QCheckBox("--disable-console")
-        self.nuitka_disable_console_cb.setToolTip("Disable the console window. Essential for GUI applications (like PySide/PyQt) so a terminal background window doesn't pop up behind your application UI.")
-        
+        self.nuitka_disable_console_cb.setToolTip(
+            "Disable the console window. Essential for GUI applications (like PySide/PyQt) so a terminal background window doesn't pop up behind your application UI."
+        )
+
         modes_layout.addWidget(self.nuitka_standalone_cb)
         modes_layout.addWidget(self.nuitka_onefile_cb)
         modes_layout.addWidget(self.nuitka_disable_console_cb)
@@ -89,27 +117,39 @@ class NuitkaMixin:
 
         # ---- Include Data Directories (--include-data-dir) ----
         data_dir_label = QLabel("Include Data Directories:")
-        data_dir_label.setToolTip("(--include-data-dir=source=destination)\nRecursively copies whole asset folders into your build deployment. Source must be a local folder path, and destination must be a relative path inside the distribution folder.")
+        data_dir_label.setToolTip(
+            "(--include-data-dir=source=destination)\nRecursively copies whole asset folders into your build deployment. Source must be a local folder path, and destination must be a relative path inside the distribution folder."
+        )
         deps_layout.addWidget(data_dir_label)
 
         self.data_dirs_list = QListWidget()
         self.data_dirs_list.setMaximumHeight(100)
-        self.data_dirs_list.setToolTip("List of folders to be copied into the final build destination layout.")
+        self.data_dirs_list.setToolTip(
+            "List of folders to be copied into the final build destination layout."
+        )
         deps_layout.addWidget(self.data_dirs_list)
 
         data_dir_buttons = QHBoxLayout()
         add_dir_folder_btn = QPushButton("📁")
-        add_dir_folder_btn.setToolTip("Browse and choose a directory folder to copy completely into the build package.")
+        add_dir_folder_btn.setToolTip(
+            "Browse and choose a directory folder to copy completely into the build package."
+        )
         add_dir_folder_btn.clicked.connect(self._add_data_dir_folder)
-        
+
         add_dir_custom_btn = QPushButton("✏️")
-        add_dir_custom_btn.setToolTip("Manually type a raw string source=destination entry for folder inclusion rules.")
+        add_dir_custom_btn.setToolTip(
+            "Manually type a raw string source=destination entry for folder inclusion rules."
+        )
         add_dir_custom_btn.clicked.connect(self._add_data_dir_custom)
-        
+
         remove_dir_btn = QPushButton("🗑️")
-        remove_dir_btn.setToolTip("Remove the currently selected item from the directory inclusion list.")
-        remove_dir_btn.clicked.connect(lambda: self._remove_list_item(self.data_dirs_list))
-        
+        remove_dir_btn.setToolTip(
+            "Remove the currently selected item from the directory inclusion list."
+        )
+        remove_dir_btn.clicked.connect(
+            lambda: self._remove_list_item(self.data_dirs_list)
+        )
+
         for btn in (add_dir_folder_btn, add_dir_custom_btn, remove_dir_btn):
             self._style_square_icon_button(btn)
         data_dir_buttons.addWidget(add_dir_folder_btn)
@@ -119,32 +159,46 @@ class NuitkaMixin:
         deps_layout.addLayout(data_dir_buttons)
 
         self.nuitka_auto_map_dirs_cb = QCheckBox("Auto‑map source folder → destination")
-        self.nuitka_auto_map_dirs_cb.setToolTip("When checked, choosing a folder automatically assumes its folder name as the relative destination directory inside the build layout, skipping the manual dialog prompt.")
+        self.nuitka_auto_map_dirs_cb.setToolTip(
+            "When checked, choosing a folder automatically assumes its folder name as the relative destination directory inside the build layout, skipping the manual dialog prompt."
+        )
         deps_layout.addWidget(self.nuitka_auto_map_dirs_cb)
 
         # ---- Include Data Files (--include-data-files) ----
         data_file_label = QLabel("Include Data Files:")
-        data_file_label.setToolTip("(--include-data-files=source=destination)\nCopies individual pattern assets (e.g., config.json, image.png) into your build distribution workspace layout.")
+        data_file_label.setToolTip(
+            "(--include-data-files=source=destination)\nCopies individual pattern assets (e.g., config.json, image.png) into your build distribution workspace layout."
+        )
         deps_layout.addWidget(data_file_label)
 
         self.data_files_list = QListWidget()
         self.data_files_list.setMaximumHeight(100)
-        self.data_files_list.setToolTip("List of standalone non-python files to be bundled with the final executable package.")
+        self.data_files_list.setToolTip(
+            "List of standalone non-python files to be bundled with the final executable package."
+        )
         deps_layout.addWidget(self.data_files_list)
 
         data_file_buttons = QHBoxLayout()
         add_file_btn = QPushButton("📄")
-        add_file_btn.setToolTip("Browse and choose an individual file to copy into the build folder.")
+        add_file_btn.setToolTip(
+            "Browse and choose an individual file to copy into the build folder."
+        )
         add_file_btn.clicked.connect(self._add_data_file)
-        
+
         add_file_custom_btn = QPushButton("✏️")
-        add_file_custom_btn.setToolTip("Manually type a raw pattern entry string source=destination entry for single file inclusion rules.")
+        add_file_custom_btn.setToolTip(
+            "Manually type a raw pattern entry string source=destination entry for single file inclusion rules."
+        )
         add_file_custom_btn.clicked.connect(self._add_data_file_custom)
-        
+
         remove_file_btn = QPushButton("🗑️")
-        remove_file_btn.setToolTip("Remove the currently selected file item from the file inclusion list.")
-        remove_file_btn.clicked.connect(lambda: self._remove_list_item(self.data_files_list))
-        
+        remove_file_btn.setToolTip(
+            "Remove the currently selected file item from the file inclusion list."
+        )
+        remove_file_btn.clicked.connect(
+            lambda: self._remove_list_item(self.data_files_list)
+        )
+
         for btn in (add_file_btn, add_file_custom_btn, remove_file_btn):
             self._style_square_icon_button(btn)
         data_file_buttons.addWidget(add_file_btn)
@@ -154,7 +208,9 @@ class NuitkaMixin:
         deps_layout.addLayout(data_file_buttons)
 
         self.nuitka_auto_map_files_cb = QCheckBox("Auto‑map source file → destination")
-        self.nuitka_auto_map_files_cb.setToolTip("When checked, choosing a file automatically assumes its exact filename as the destination layout name inside the build distribution layout, skipping manual dialog prompting.")
+        self.nuitka_auto_map_files_cb.setToolTip(
+            "When checked, choosing a file automatically assumes its exact filename as the destination layout name inside the build distribution layout, skipping manual dialog prompting."
+        )
         deps_layout.addWidget(self.nuitka_auto_map_files_cb)
 
         run_layout.addWidget(self.deps_group)
@@ -165,11 +221,15 @@ class NuitkaMixin:
 
         self.nuitka_icon_edit = QLineEdit()
         self.nuitka_icon_edit.setPlaceholderText("app.ico / app.icns")
-        self.nuitka_icon_edit.setToolTip("Path to application executable icon file. Uses .ico on Windows setups and .icns for macOS apps package bundles.")
+        self.nuitka_icon_edit.setToolTip(
+            "Path to application executable icon file. Uses .ico on Windows setups and .icns for macOS apps package bundles."
+        )
         icon_layout = QHBoxLayout()
         icon_layout.addWidget(self.nuitka_icon_edit)
         icon_browse_btn = QPushButton("📄")
-        icon_browse_btn.setToolTip("Browse filesystem for .ico or .icns branding application icons.")
+        icon_browse_btn.setToolTip(
+            "Browse filesystem for .ico or .icns branding application icons."
+        )
         icon_browse_btn.clicked.connect(self._browse_icon_file)
         self._style_square_icon_button(icon_browse_btn)
         icon_layout.addWidget(icon_browse_btn)
@@ -177,7 +237,9 @@ class NuitkaMixin:
 
         # ---- Plugins Textbox (Moved here) ----
         self.nuitka_enable_plugin_edit = QLineEdit()
-        self.nuitka_enable_plugin_edit.setPlaceholderText("anti-bloat, numpy, matplotlib")
+        self.nuitka_enable_plugin_edit.setPlaceholderText(
+            "anti-bloat, numpy, matplotlib"
+        )
         self.nuitka_enable_plugin_edit.setToolTip(
             "(--enable-plugin)\n"
             "Activates specialized Nuitka compilation hooks and code-generation recipes "
@@ -207,53 +269,80 @@ class NuitkaMixin:
         advanced_layout.addRow("Include Modules:", self.nuitka_include_modules_edit)
 
         self.nuitka_uac_admin_cb = QCheckBox("--windows-uac-admin")
-        self.nuitka_uac_admin_cb.setToolTip("Forces the compiled execution binary to request elevated Windows User Account Control (UAC) administrator privileges upon startup execution (Windows Only).")
+        self.nuitka_uac_admin_cb.setToolTip(
+            "Forces the compiled execution binary to request elevated Windows User Account Control (UAC) administrator privileges upon startup execution (Windows Only)."
+        )
         advanced_layout.addRow("Admin Rights (Windows):", self.nuitka_uac_admin_cb)
 
         self.nuitka_jobs_spin = QSpinBox()
         self.nuitka_jobs_spin.setRange(1, 32)
         self.nuitka_jobs_spin.setValue(0)
         self.nuitka_jobs_spin.setSpecialValueText("Auto")
-        self.nuitka_jobs_spin.setToolTip("(--jobs)\nSpecifies the number of concurrent parallel compiler threads/CPU cores to use for compiling C++ files. 'Auto' optimizes resource detection automatically.")
+        self.nuitka_jobs_spin.setToolTip(
+            "(--jobs)\nSpecifies the number of concurrent parallel compiler threads/CPU cores to use for compiling C++ files. 'Auto' optimizes resource detection automatically."
+        )
         advanced_layout.addRow("Parallel Jobs:", self.nuitka_jobs_spin)
 
         self.nuitka_auto_plugin_pyside6_cb = QCheckBox("Auto-enable PySide6 plugin")
-        self.nuitka_auto_plugin_pyside6_cb.setToolTip("Appends '--enable-plugin=pyside6' automatically to guarantee Qt GUI component hooks function properly without explicit manual text entry declarations.")
+        self.nuitka_auto_plugin_pyside6_cb.setToolTip(
+            "Appends '--enable-plugin=pyside6' automatically to guarantee Qt GUI component hooks function properly without explicit manual text entry declarations."
+        )
         self.nuitka_auto_plugin_pyside6_cb.setChecked(True)
         advanced_layout.addRow("", self.nuitka_auto_plugin_pyside6_cb)
 
         self.nuitka_no_dependency_walker_cb = QCheckBox("Skip Dependency Walker")
-        self.nuitka_no_dependency_walker_cb.setToolTip("(--no-dependency-walker)\nSpeeds up build orchestration on Windows machines by skipping deep recursive Dependency Walker scans, using fast internal detection instead.")
+        self.nuitka_no_dependency_walker_cb.setToolTip(
+            "(--no-dependency-walker)\nSpeeds up build orchestration on Windows machines by skipping deep recursive Dependency Walker scans, using fast internal detection instead."
+        )
         self.nuitka_no_dependency_walker_cb.setChecked(True)
         advanced_layout.addRow("", self.nuitka_no_dependency_walker_cb)
 
         run_layout.addWidget(self.advanced_group)
 
         # --- Collapsible Additional Flags Group ---
-        self.extra_flags_group = self._create_collapsible_group("Additional Nuitka Flags")
+        self.extra_flags_group = self._create_collapsible_group(
+            "Additional Nuitka Flags"
+        )
         flags_layout = QVBoxLayout(self.extra_flags_group.content_widget)
 
         self.nuitka_follow_imports_cb = QCheckBox("--follow-imports")
-        self.nuitka_follow_imports_cb.setToolTip("Tells Nuitka to step into and trace all linked Python source file imports to compile them completely into C levels.")
-        
-        self.nuitka_lto_cb = QCheckBox("--lto=auto")
-        self.nuitka_lto_cb.setToolTip("Enables Link Time Optimization (LTO) in C++ compilers. Produces faster, smaller final execution binaries but results in noticeably longer compile times.")
-        
-        self.nuitka_deployment_cb = QCheckBox("--deployment")
-        self.nuitka_deployment_cb.setToolTip("Disables diagnostic/safeguard wrappers. Optimizes binaries for production delivery while disabling runtime compilation warnings.")
-        
-        self.nuitka_low_memory_cb = QCheckBox("--low-memory")
-        self.nuitka_low_memory_cb.setToolTip("Instructs the C++ internal compiler to optimize and restrict RAM utilization, avoiding host machine freezing during multi-core compiler tasks.")
-        
-        self.nuitka_no_pyi_cb = QCheckBox("--no-pyi-file")
-        self.nuitka_no_pyi_cb.setToolTip("Tells Nuitka to ignore .pyi interface typing stub file definitions when tracing packages dependencies.")
-        
-        self.nuitka_experimental_cb = QCheckBox("--experimental")
-        self.nuitka_experimental_cb.setToolTip("Activates pre-release features or unstable compilation logic patches embedded within your installed Nuitka core version.")
+        self.nuitka_follow_imports_cb.setToolTip(
+            "Tells Nuitka to step into and trace all linked Python source file imports to compile them completely into C levels."
+        )
 
-        for cb in (self.nuitka_follow_imports_cb, self.nuitka_lto_cb,
-                   self.nuitka_deployment_cb, self.nuitka_low_memory_cb,
-                   self.nuitka_no_pyi_cb, self.nuitka_experimental_cb):
+        self.nuitka_lto_cb = QCheckBox("--lto=auto")
+        self.nuitka_lto_cb.setToolTip(
+            "Enables Link Time Optimization (LTO) in C++ compilers. Produces faster, smaller final execution binaries but results in noticeably longer compile times."
+        )
+
+        self.nuitka_deployment_cb = QCheckBox("--deployment")
+        self.nuitka_deployment_cb.setToolTip(
+            "Disables diagnostic/safeguard wrappers. Optimizes binaries for production delivery while disabling runtime compilation warnings."
+        )
+
+        self.nuitka_low_memory_cb = QCheckBox("--low-memory")
+        self.nuitka_low_memory_cb.setToolTip(
+            "Instructs the C++ internal compiler to optimize and restrict RAM utilization, avoiding host machine freezing during multi-core compiler tasks."
+        )
+
+        self.nuitka_no_pyi_cb = QCheckBox("--no-pyi-file")
+        self.nuitka_no_pyi_cb.setToolTip(
+            "Tells Nuitka to ignore .pyi interface typing stub file definitions when tracing packages dependencies."
+        )
+
+        self.nuitka_experimental_cb = QCheckBox("--experimental")
+        self.nuitka_experimental_cb.setToolTip(
+            "Activates pre-release features or unstable compilation logic patches embedded within your installed Nuitka core version."
+        )
+
+        for cb in (
+            self.nuitka_follow_imports_cb,
+            self.nuitka_lto_cb,
+            self.nuitka_deployment_cb,
+            self.nuitka_low_memory_cb,
+            self.nuitka_no_pyi_cb,
+            self.nuitka_experimental_cb,
+        ):
             flags_layout.addWidget(cb)
 
         run_layout.addWidget(self.extra_flags_group)
@@ -261,15 +350,22 @@ class NuitkaMixin:
         # --- Extra Args & Run Button ---
         extra_layout = QHBoxLayout()
         extra_label = QLabel("Extra args:")
-        extra_label.setToolTip("Provide any advanced raw Nuitka CLI parameters not exposed through this graphical pane interface.")
+        extra_label.setToolTip(
+            "Provide any advanced raw Nuitka CLI parameters not exposed through this graphical pane interface."
+        )
         extra_layout.addWidget(extra_label)
         self.nuitka_extra_edit = QLineEdit()
-        self.nuitka_extra_edit.setToolTip("Space-separated CLI string parameters (e.g. --plugin-enable=tk-inter --show-scons).")
+        self.nuitka_extra_edit.setToolTip(
+            "Space-separated CLI string parameters (e.g. --plugin-enable=tk-inter --show-scons)."
+        )
         extra_layout.addWidget(self.nuitka_extra_edit)
         run_layout.addLayout(extra_layout)
 
         self.run_nuitka_btn = QPushButton("🚀 Run Nuitka Compiler")
-        self._setup_button(self.run_nuitka_btn, "Start compiling the target project using the selected parameter flags.")
+        self._setup_button(
+            self.run_nuitka_btn,
+            "Start compiling the target project using the selected parameter flags.",
+        )
         self._style_critical_button(self.run_nuitka_btn, "#2E7D32", "#1B5E20")
         self.run_nuitka_btn.clicked.connect(self.run_nuitka)
         run_layout.addWidget(self.run_nuitka_btn)
@@ -278,24 +374,34 @@ class NuitkaMixin:
         # ====================== Tab 2: Config / Settings ======================
         config_tab = QWidget()
         config_layout = QVBoxLayout(config_tab)
-        
+
         preview_label = QLabel("Command Preview:")
-        preview_label.setToolTip("Live terminal-formatted output preview of the command string built by your option toggles.")
+        preview_label.setToolTip(
+            "Live terminal-formatted output preview of the command string built by your option toggles."
+        )
         config_layout.addWidget(preview_label)
-        
+
         self.nuitka_cmd_preview = QPlainTextEdit()
         self.nuitka_cmd_preview.setReadOnly(True)
-        self.nuitka_cmd_preview.setToolTip("Copyable system execution payload display reflecting live GUI parameter switches.")
-        self.nuitka_cmd_preview.setStyleSheet("font-family: monospace; background-color: #1e1e1e; color: #d4d4d4;")
+        self.nuitka_cmd_preview.setToolTip(
+            "Copyable system execution payload display reflecting live GUI parameter switches."
+        )
+        self.nuitka_cmd_preview.setStyleSheet(
+            "font-family: monospace; background-color: #1e1e1e; color: #d4d4d4;"
+        )
         config_layout.addWidget(self.nuitka_cmd_preview)
 
         self.export_settings_btn = QPushButton("💾 Export Nuitka Settings (.json)")
-        self.export_settings_btn.setToolTip("Export the current configuration parameters configured in this UI pane into a portable .json config file.")
+        self.export_settings_btn.setToolTip(
+            "Export the current configuration parameters configured in this UI pane into a portable .json config file."
+        )
         self.export_settings_btn.clicked.connect(self.export_nuitka_settings)
         config_layout.addWidget(self.export_settings_btn)
 
         self.load_settings_btn = QPushButton("📄 Load Nuitka Settings")
-        self.load_settings_btn.setToolTip("Load and re-apply configuration selections directly into this panel from an exported Nuitka JSON parameters profile file.")
+        self.load_settings_btn.setToolTip(
+            "Load and re-apply configuration selections directly into this panel from an exported Nuitka JSON parameters profile file."
+        )
         self.load_settings_btn.clicked.connect(self.load_nuitka_settings)
         config_layout.addWidget(self.load_settings_btn)
 
@@ -312,27 +418,49 @@ class NuitkaMixin:
 
     # ---------- Helper Methods ----------
     def _browse_entry_script(self):
-        start_dir = self.folder_edit.text().strip() if hasattr(self, 'folder_edit') else os.getcwd()
+        start_dir = (
+            self.folder_edit.text().strip()
+            if hasattr(self, "folder_edit")
+            else os.getcwd()
+        )
         if not os.path.isdir(start_dir):
             start_dir = os.getcwd()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Entry Script", start_dir, "Python Files (*.py)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Entry Script", start_dir, "Python Files (*.py)"
+        )
         if file_path:
             self.nuitka_entry_edit.setText(file_path)
 
     def _browse_output_dir(self):
-        start_dir = self.folder_edit.text().strip() if hasattr(self, 'folder_edit') else os.getcwd()
+        start_dir = (
+            self.folder_edit.text().strip()
+            if hasattr(self, "folder_edit")
+            else os.getcwd()
+        )
         if not os.path.isdir(start_dir):
             start_dir = os.getcwd()
-        dir_path = QFileDialog.getExistingDirectory(self, "Select Output Directory", start_dir)
+        dir_path = QFileDialog.getExistingDirectory(
+            self, "Select Output Directory", start_dir
+        )
         if dir_path:
             self.nuitka_output_edit.setText(dir_path)
 
     def _browse_icon_file(self):
-        start_dir = self.folder_edit.text().strip() if hasattr(self, 'folder_edit') else os.getcwd()
+        start_dir = (
+            self.folder_edit.text().strip()
+            if hasattr(self, "folder_edit")
+            else os.getcwd()
+        )
         if not os.path.isdir(start_dir):
             start_dir = os.getcwd()
-        filter_str = "Icon Files (*.ico *.icns);;All Files (*)" if sys.platform == 'win32' else "Icon Files (*.icns *.ico);;All Files (*)"
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Icon File", start_dir, filter_str)
+        filter_str = (
+            "Icon Files (*.ico *.icns);;All Files (*)"
+            if sys.platform == "win32"
+            else "Icon Files (*.icns *.ico);;All Files (*)"
+        )
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Icon File", start_dir, filter_str
+        )
         if file_path:
             self.nuitka_icon_edit.setText(file_path)
 
@@ -349,13 +477,17 @@ class NuitkaMixin:
             dest = os.path.basename(src.rstrip("/\\"))
             self.data_dirs_list.addItem(f"{src}={dest}")
         else:
-            dest, ok = QInputDialog.getText(self, "Destination", "Destination path (relative to output):")
+            dest, ok = QInputDialog.getText(
+                self, "Destination", "Destination path (relative to output):"
+            )
             if not ok or not dest.strip():
                 dest = os.path.basename(src.rstrip("/\\"))
             self.data_dirs_list.addItem(f"{src}={dest}")
 
     def _add_data_dir_custom(self):
-        text, ok = QInputDialog.getText(self, "Custom Data Dir Entry", "Enter source=destination")
+        text, ok = QInputDialog.getText(
+            self, "Custom Data Dir Entry", "Enter source=destination"
+        )
         if ok and text.strip():
             self.data_dirs_list.addItem(text.strip())
 
@@ -368,13 +500,17 @@ class NuitkaMixin:
             dest = os.path.basename(src)
             self.data_files_list.addItem(f"{src}={dest}")
         else:
-            dest, ok = QInputDialog.getText(self, "Destination", "Destination path (relative to output):")
+            dest, ok = QInputDialog.getText(
+                self, "Destination", "Destination path (relative to output):"
+            )
             if not ok or not dest.strip():
                 dest = os.path.basename(src)
             self.data_files_list.addItem(f"{src}={dest}")
 
     def _add_data_file_custom(self):
-        text, ok = QInputDialog.getText(self, "Custom Data File Entry", "Enter source=destination")
+        text, ok = QInputDialog.getText(
+            self, "Custom Data File Entry", "Enter source=destination"
+        )
         if ok and text.strip():
             self.data_files_list.addItem(text.strip())
 
@@ -384,18 +520,34 @@ class NuitkaMixin:
             list_widget.takeItem(row)
 
     def _connect_nuitka_signals(self):
-        edits = [self.nuitka_entry_edit, self.nuitka_output_edit, self.nuitka_enable_plugin_edit,
-                 self.nuitka_extra_edit, self.nuitka_icon_edit, self.nuitka_include_packages_edit,
-                 self.nuitka_include_modules_edit]
+        edits = [
+            self.nuitka_entry_edit,
+            self.nuitka_output_edit,
+            self.nuitka_enable_plugin_edit,
+            self.nuitka_extra_edit,
+            self.nuitka_icon_edit,
+            self.nuitka_include_packages_edit,
+            self.nuitka_include_modules_edit,
+        ]
         for edit in edits:
             edit.textChanged.connect(self._update_nuitka_preview)
 
-        cbs = [self.nuitka_standalone_cb, self.nuitka_onefile_cb, self.nuitka_disable_console_cb,
-               self.nuitka_uac_admin_cb, self.nuitka_auto_plugin_pyside6_cb,
-               self.nuitka_no_dependency_walker_cb, self.nuitka_follow_imports_cb,
-               self.nuitka_lto_cb, self.nuitka_deployment_cb, self.nuitka_low_memory_cb,
-               self.nuitka_no_pyi_cb, self.nuitka_experimental_cb, 
-               self.nuitka_auto_map_dirs_cb, self.nuitka_auto_map_files_cb]
+        cbs = [
+            self.nuitka_standalone_cb,
+            self.nuitka_onefile_cb,
+            self.nuitka_disable_console_cb,
+            self.nuitka_uac_admin_cb,
+            self.nuitka_auto_plugin_pyside6_cb,
+            self.nuitka_no_dependency_walker_cb,
+            self.nuitka_follow_imports_cb,
+            self.nuitka_lto_cb,
+            self.nuitka_deployment_cb,
+            self.nuitka_low_memory_cb,
+            self.nuitka_no_pyi_cb,
+            self.nuitka_experimental_cb,
+            self.nuitka_auto_map_dirs_cb,
+            self.nuitka_auto_map_files_cb,
+        ]
         for cb in cbs:
             cb.clicked.connect(self._update_nuitka_preview)
 
@@ -415,9 +567,13 @@ class NuitkaMixin:
     def _load_nuitka_settings(self):
         self.nuitka_entry_edit.setText(self.settings.get("nuitka_entry", "main.py"))
         self.nuitka_output_edit.setText(self.settings.get("nuitka_output", ""))
-        self.nuitka_standalone_cb.setChecked(self.settings.get("nuitka_standalone", False))
+        self.nuitka_standalone_cb.setChecked(
+            self.settings.get("nuitka_standalone", False)
+        )
         self.nuitka_onefile_cb.setChecked(self.settings.get("nuitka_onefile", False))
-        self.nuitka_disable_console_cb.setChecked(self.settings.get("nuitka_disable_console", False))
+        self.nuitka_disable_console_cb.setChecked(
+            self.settings.get("nuitka_disable_console", False)
+        )
 
         # Data directories
         data_dirs = self.settings.get("nuitka_include_data_dirs", [])
@@ -437,26 +593,50 @@ class NuitkaMixin:
             if entry.strip():
                 self.data_files_list.addItem(entry.strip())
 
-        self.nuitka_enable_plugin_edit.setText(self.settings.get("nuitka_enable_plugin", ""))
+        self.nuitka_enable_plugin_edit.setText(
+            self.settings.get("nuitka_enable_plugin", "")
+        )
         self.nuitka_extra_edit.setText(self.settings.get("nuitka_extra", ""))
         self.nuitka_icon_edit.setText(self.settings.get("nuitka_icon", ""))
-        self.nuitka_include_packages_edit.setText(self.settings.get("nuitka_include_packages", ""))
-        self.nuitka_include_modules_edit.setText(self.settings.get("nuitka_include_modules", ""))
-        self.nuitka_uac_admin_cb.setChecked(self.settings.get("nuitka_uac_admin", False))
+        self.nuitka_include_packages_edit.setText(
+            self.settings.get("nuitka_include_packages", "")
+        )
+        self.nuitka_include_modules_edit.setText(
+            self.settings.get("nuitka_include_modules", "")
+        )
+        self.nuitka_uac_admin_cb.setChecked(
+            self.settings.get("nuitka_uac_admin", False)
+        )
         self.nuitka_jobs_spin.setValue(self.settings.get("nuitka_jobs", 0))
-        self.nuitka_auto_plugin_pyside6_cb.setChecked(self.settings.get("nuitka_auto_plugin_pyside6", True))
-        self.nuitka_no_dependency_walker_cb.setChecked(self.settings.get("nuitka_no_dependency_walker", True))
+        self.nuitka_auto_plugin_pyside6_cb.setChecked(
+            self.settings.get("nuitka_auto_plugin_pyside6", True)
+        )
+        self.nuitka_no_dependency_walker_cb.setChecked(
+            self.settings.get("nuitka_no_dependency_walker", True)
+        )
 
-        self.nuitka_follow_imports_cb.setChecked(self.settings.get("nuitka_follow_imports", False))
+        self.nuitka_follow_imports_cb.setChecked(
+            self.settings.get("nuitka_follow_imports", False)
+        )
         self.nuitka_lto_cb.setChecked(self.settings.get("nuitka_lto", False))
-        self.nuitka_deployment_cb.setChecked(self.settings.get("nuitka_deployment", False))
-        self.nuitka_low_memory_cb.setChecked(self.settings.get("nuitka_low_memory", False))
+        self.nuitka_deployment_cb.setChecked(
+            self.settings.get("nuitka_deployment", False)
+        )
+        self.nuitka_low_memory_cb.setChecked(
+            self.settings.get("nuitka_low_memory", False)
+        )
         self.nuitka_no_pyi_cb.setChecked(self.settings.get("nuitka_no_pyi", False))
-        self.nuitka_experimental_cb.setChecked(self.settings.get("nuitka_experimental", False))
+        self.nuitka_experimental_cb.setChecked(
+            self.settings.get("nuitka_experimental", False)
+        )
 
         # Correctly load auto-map checkbox states internally
-        self.nuitka_auto_map_dirs_cb.setChecked(self.settings.get("nuitka_auto_map_dirs", False))
-        self.nuitka_auto_map_files_cb.setChecked(self.settings.get("nuitka_auto_map_files", False))
+        self.nuitka_auto_map_dirs_cb.setChecked(
+            self.settings.get("nuitka_auto_map_dirs", False)
+        )
+        self.nuitka_auto_map_files_cb.setChecked(
+            self.settings.get("nuitka_auto_map_files", False)
+        )
 
         self._update_nuitka_preview()
 
@@ -465,36 +645,63 @@ class NuitkaMixin:
         self.settings.set("nuitka_output", self.nuitka_output_edit.text().strip())
         self.settings.set("nuitka_standalone", self.nuitka_standalone_cb.isChecked())
         self.settings.set("nuitka_onefile", self.nuitka_onefile_cb.isChecked())
-        self.settings.set("nuitka_disable_console", self.nuitka_disable_console_cb.isChecked())
+        self.settings.set(
+            "nuitka_disable_console", self.nuitka_disable_console_cb.isChecked()
+        )
 
         # Save data directories as list
-        data_dirs = [self.data_dirs_list.item(i).text() for i in range(self.data_dirs_list.count())]
+        data_dirs = [
+            self.data_dirs_list.item(i).text()
+            for i in range(self.data_dirs_list.count())
+        ]
         self.settings.set("nuitka_include_data_dirs", data_dirs)
 
         # Save data files as list
-        data_files = [self.data_files_list.item(i).text() for i in range(self.data_files_list.count())]
+        data_files = [
+            self.data_files_list.item(i).text()
+            for i in range(self.data_files_list.count())
+        ]
         self.settings.set("nuitka_include_data_files", data_files)
 
-        self.settings.set("nuitka_enable_plugin", self.nuitka_enable_plugin_edit.text().strip())
+        self.settings.set(
+            "nuitka_enable_plugin", self.nuitka_enable_plugin_edit.text().strip()
+        )
         self.settings.set("nuitka_extra", self.nuitka_extra_edit.text().strip())
         self.settings.set("nuitka_icon", self.nuitka_icon_edit.text().strip())
-        self.settings.set("nuitka_include_packages", self.nuitka_include_packages_edit.text().strip())
-        self.settings.set("nuitka_include_modules", self.nuitka_include_modules_edit.text().strip())
+        self.settings.set(
+            "nuitka_include_packages", self.nuitka_include_packages_edit.text().strip()
+        )
+        self.settings.set(
+            "nuitka_include_modules", self.nuitka_include_modules_edit.text().strip()
+        )
         self.settings.set("nuitka_uac_admin", self.nuitka_uac_admin_cb.isChecked())
         self.settings.set("nuitka_jobs", self.nuitka_jobs_spin.value())
-        self.settings.set("nuitka_auto_plugin_pyside6", self.nuitka_auto_plugin_pyside6_cb.isChecked())
-        self.settings.set("nuitka_no_dependency_walker", self.nuitka_no_dependency_walker_cb.isChecked())
+        self.settings.set(
+            "nuitka_auto_plugin_pyside6", self.nuitka_auto_plugin_pyside6_cb.isChecked()
+        )
+        self.settings.set(
+            "nuitka_no_dependency_walker",
+            self.nuitka_no_dependency_walker_cb.isChecked(),
+        )
 
-        self.settings.set("nuitka_follow_imports", self.nuitka_follow_imports_cb.isChecked())
+        self.settings.set(
+            "nuitka_follow_imports", self.nuitka_follow_imports_cb.isChecked()
+        )
         self.settings.set("nuitka_lto", self.nuitka_lto_cb.isChecked())
         self.settings.set("nuitka_deployment", self.nuitka_deployment_cb.isChecked())
         self.settings.set("nuitka_low_memory", self.nuitka_low_memory_cb.isChecked())
         self.settings.set("nuitka_no_pyi", self.nuitka_no_pyi_cb.isChecked())
-        self.settings.set("nuitka_experimental", self.nuitka_experimental_cb.isChecked())
+        self.settings.set(
+            "nuitka_experimental", self.nuitka_experimental_cb.isChecked()
+        )
 
         # Correctly save auto-map checkbox states internally
-        self.settings.set("nuitka_auto_map_dirs", self.nuitka_auto_map_dirs_cb.isChecked())
-        self.settings.set("nuitka_auto_map_files", self.nuitka_auto_map_files_cb.isChecked())
+        self.settings.set(
+            "nuitka_auto_map_dirs", self.nuitka_auto_map_dirs_cb.isChecked()
+        )
+        self.settings.set(
+            "nuitka_auto_map_files", self.nuitka_auto_map_files_cb.isChecked()
+        )
 
     # ---------- Command Generation & Preview ----------
     def _generate_nuitka_args(self):
@@ -536,9 +743,9 @@ class NuitkaMixin:
 
         icon_path = self.nuitka_icon_edit.text().strip()
         if icon_path:
-            if sys.platform == 'win32':
+            if sys.platform == "win32":
                 args.append(f"--windows-icon-from-ico={icon_path}")
-            elif sys.platform == 'darwin':
+            elif sys.platform == "darwin":
                 args.append(f"--macos-app-icon={icon_path}")
 
         for pkg in self.nuitka_include_packages_edit.text().strip().split():
@@ -548,7 +755,7 @@ class NuitkaMixin:
             if mod:
                 args.append(f"--include-module={mod}")
 
-        if self.nuitka_uac_admin_cb.isChecked() and sys.platform == 'win32':
+        if self.nuitka_uac_admin_cb.isChecked() and sys.platform == "win32":
             args.append("--windows-uac-admin")
 
         jobs = self.nuitka_jobs_spin.value()
@@ -587,27 +794,43 @@ class NuitkaMixin:
         self.save_current_settings()
         project_folder = self.folder_edit.text().strip()
         if not project_folder or not os.path.isdir(project_folder):
-            QMessageBox.warning(self, "Invalid Workspace", "Please select a valid project directory first.")
+            QMessageBox.warning(
+                self,
+                "Invalid Workspace",
+                "Please select a valid project directory first.",
+            )
             return
         if not self.nuitka_entry_edit.text().strip():
-            QMessageBox.warning(self, "Missing Entry Script", "Please define a target script (e.g., main.py).")
+            QMessageBox.warning(
+                self,
+                "Missing Entry Script",
+                "Please define a target script (e.g., main.py).",
+            )
             return
 
         args = self._generate_nuitka_args()
         program, resolved_args, env_data = self._build_env_command("python", args)
         if program:
-            self.run_command(program, resolved_args, project_folder, "Nuitka Compilation", env_data)
+            self.run_command(
+                program, resolved_args, project_folder, "Nuitka Compilation", env_data
+            )
 
     # ---------- JSON Export / Import ----------
     def export_nuitka_settings(self):
         self.save_current_settings()
         project_folder = self.folder_edit.text().strip()
         if not project_folder or not os.path.isdir(project_folder):
-            QMessageBox.warning(self, "Invalid Workspace", "Please select a valid project directory first.")
+            QMessageBox.warning(
+                self,
+                "Invalid Workspace",
+                "Please select a valid project directory first.",
+            )
             return
 
         default_path = os.path.join(project_folder, "nuitka_settings.json")
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save Nuitka Settings", default_path, "JSON Files (*.json)")
+        save_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Nuitka Settings", default_path, "JSON Files (*.json)"
+        )
         if not save_path:
             return
 
@@ -617,8 +840,14 @@ class NuitkaMixin:
             "standalone": self.nuitka_standalone_cb.isChecked(),
             "onefile": self.nuitka_onefile_cb.isChecked(),
             "disable_console": self.nuitka_disable_console_cb.isChecked(),
-            "include_data_dirs": [self.data_dirs_list.item(i).text() for i in range(self.data_dirs_list.count())],
-            "include_data_files": [self.data_files_list.item(i).text() for i in range(self.data_files_list.count())],
+            "include_data_dirs": [
+                self.data_dirs_list.item(i).text()
+                for i in range(self.data_dirs_list.count())
+            ],
+            "include_data_files": [
+                self.data_files_list.item(i).text()
+                for i in range(self.data_files_list.count())
+            ],
             "enable_plugin": self.nuitka_enable_plugin_edit.text().strip(),
             "extra_args": self.nuitka_extra_edit.text().strip(),
             "icon": self.nuitka_icon_edit.text().strip(),
@@ -635,10 +864,10 @@ class NuitkaMixin:
             "no_pyi": self.nuitka_no_pyi_cb.isChecked(),
             "experimental": self.nuitka_experimental_cb.isChecked(),
             "auto_map_dirs": self.nuitka_auto_map_dirs_cb.isChecked(),
-            "auto_map_files": self.nuitka_auto_map_files_cb.isChecked()
+            "auto_map_files": self.nuitka_auto_map_files_cb.isChecked(),
         }
         try:
-            with open(save_path, 'w', encoding='utf-8') as f:
+            with open(save_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4)
             QMessageBox.information(self, "Success", f"Settings saved to:\n{save_path}")
         except Exception as e:
@@ -647,21 +876,29 @@ class NuitkaMixin:
     def load_nuitka_settings(self):
         project_folder = self.folder_edit.text().strip()
         if not project_folder or not os.path.isdir(project_folder):
-            QMessageBox.warning(self, "Invalid Workspace", "Please select a valid project directory first.")
+            QMessageBox.warning(
+                self,
+                "Invalid Workspace",
+                "Please select a valid project directory first.",
+            )
             return
 
-        load_path, _ = QFileDialog.getOpenFileName(self, "Load Nuitka Settings", project_folder, "JSON Files (*.json)")
+        load_path, _ = QFileDialog.getOpenFileName(
+            self, "Load Nuitka Settings", project_folder, "JSON Files (*.json)"
+        )
         if not load_path:
             return
 
         try:
-            with open(load_path, 'r', encoding='utf-8') as f:
+            with open(load_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self.nuitka_entry_edit.setText(data.get("entry", ""))
             self.nuitka_output_edit.setText(data.get("output_dir", ""))
             self.nuitka_standalone_cb.setChecked(data.get("standalone", False))
             self.nuitka_onefile_cb.setChecked(data.get("onefile", False))
-            self.nuitka_disable_console_cb.setChecked(data.get("disable_console", False))
+            self.nuitka_disable_console_cb.setChecked(
+                data.get("disable_console", False)
+            )
 
             self.data_dirs_list.clear()
             for entry in data.get("include_data_dirs", []):
@@ -677,8 +914,12 @@ class NuitkaMixin:
             self.nuitka_include_modules_edit.setText(data.get("include_modules", ""))
             self.nuitka_uac_admin_cb.setChecked(data.get("uac_admin", False))
             self.nuitka_jobs_spin.setValue(data.get("jobs", 0))
-            self.nuitka_auto_plugin_pyside6_cb.setChecked(data.get("auto_plugin_pyside6", True))
-            self.nuitka_no_dependency_walker_cb.setChecked(data.get("no_dependency_walker", True))
+            self.nuitka_auto_plugin_pyside6_cb.setChecked(
+                data.get("auto_plugin_pyside6", True)
+            )
+            self.nuitka_no_dependency_walker_cb.setChecked(
+                data.get("no_dependency_walker", True)
+            )
 
             self.nuitka_follow_imports_cb.setChecked(data.get("follow_imports", False))
             self.nuitka_lto_cb.setChecked(data.get("lto", False))
@@ -692,6 +933,8 @@ class NuitkaMixin:
             self.nuitka_auto_map_files_cb.setChecked(data.get("auto_map_files", False))
 
             self._update_nuitka_preview()
-            QMessageBox.information(self, "Success", f"Settings loaded from:\n{load_path}")
+            QMessageBox.information(
+                self, "Success", f"Settings loaded from:\n{load_path}"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load: {e}")

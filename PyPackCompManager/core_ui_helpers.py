@@ -1,6 +1,7 @@
 from pathlib import Path
 from PySide6.QtCore import QDir, Qt
-from PySide6.QtWidgets import QGroupBox, QWidget, QVBoxLayout
+from PySide6.QtWidgets import QGroupBox, QWidget, QVBoxLayout, QFrame
+
 
 class CoreUIMixin:
     """Contains shared generic UI styling and path helper methods."""
@@ -52,18 +53,56 @@ class CoreUIMixin:
 
     def set_action_buttons_enabled(self, enabled):
         """Dynamically enables/disables critical UI buttons during processes."""
-        btn_names = [
-            'run_cargo_btn', 'run_maturin_btn', 'uninstall_btn', 
-            'global_uninstall_btn', 'install_btn', 'global_update_btn'
+        action_buttons = [
+            # Build tools
+            'run_cargo_btn',
+            'run_maturin_btn',
+            'run_nuitka_btn',
+    
+            #Local packages
+            'install_btn',
+            'refresh_wheels_btn',
+            'copy_package_name_btn',
+            'uninstall_btn',
+            
+    
+            # Global packages (PyPI, Conda, CUDA)
+            'pypi_install_btn',
+            'pypi_build_wheel_btn',
+            'conda_install_btn',
+            'cuda_prep_btn',
+            'refresh_installed_btn',
+            'global_update_btn',
+            'global_uninstall_btn',
+    
+            # Audit buttons (optional but recommended)
+            'btn_check_smi',
+            'btn_check_nvcc',
+            'btn_check_cl',
+    
+            # Local packages
+            'install_wheel_btn',
+            'uninstall_pkg_btn',
+            
+            #Cuda
+            'btn_check_smi',
+            'btn_check_nvcc',
+            'btn_check_cl',
+            
+    
+            # Search buttons (quick, but you can block them too)
+            'pypi_search_btn',    # if you have one
+            'conda_search_btn',   # if you have one
+            'btn_auto_vcvars', 
         ]
-        for btn in btn_names:
+        for btn in action_buttons:
             if hasattr(self, btn):
                 getattr(self, btn).setEnabled(enabled)
 
 
 class CollapsibleGroupBox(QGroupBox):
     """A native-looking QGroupBox that toggles its content when the title is clicked."""
-    
+
     def __init__(self, title, parent=None):
         super().__init__(parent)
         self._base_title = title
@@ -74,7 +113,7 @@ class CollapsibleGroupBox(QGroupBox):
 
         # Main layout for the QGroupBox itself
         self._main_layout = QVBoxLayout(self)
-        self._main_layout.setContentsMargins(3, 3, 3, 3)   
+        self._main_layout.setContentsMargins(3, 3, 3, 3)
         self._main_layout.addWidget(self.content_widget)
 
         self._update_title()
@@ -99,13 +138,22 @@ class CollapsibleGroupBox(QGroupBox):
                 # --- OPTIMIZATION FOR A VERY THIN BOX ---
                 if self.is_expanded:
                     # Remove height restriction when expanded (16777215 is QWIDGETSIZE_MAX)
-                    self.setMaximumHeight(16777215) 
+                    self.setMaximumHeight(16777215)
                 else:
                     # Clamp the maximum height to just the title area and top margin when collapsed
-                    self.setMaximumHeight(title_height + self._main_layout.contentsMargins().top())
+                    self.setMaximumHeight(
+                        title_height + self._main_layout.contentsMargins().top()
+                    )
 
                 event.accept()
                 return
 
         # Pass any other clicks (inside the widget) to the base class
         super().mousePressEvent(event)
+
+
+class QHLine(QFrame):
+    def __init__(self):
+        super().__init__()
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
