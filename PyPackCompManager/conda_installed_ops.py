@@ -9,6 +9,8 @@ import os
 import json
 import re
 import sys
+import html
+from urllib.parse import quote
 
 from PySide6.QtCore import Qt, QProcess, QProcessEnvironment
 from PySide6.QtWidgets import QMessageBox
@@ -105,7 +107,9 @@ class CondaInstalledMixin:
                 if channel_name == "defaults":
                     channel_name = "anaconda"
 
-                anaconda_url = f"https://anaconda.org/{channel_name}/{pkg}"
+                anaconda_url = (
+                    f"https://anaconda.org/{quote(channel_name, safe='')}/{quote(pkg, safe='')}"
+                )
                 anaconda_link = f'<br><a href="{anaconda_url}" target="_blank" style="color: #039BE5; text-decoration: underline;">📦 Conda Package Page</a>'
 
                 # Store package, version, and channel for homepage fetch
@@ -113,10 +117,12 @@ class CondaInstalledMixin:
                 self._last_conda_version = v
                 self._last_conda_channel = c
 
-                # Display basic info + Anaconda link
+                # Display basic info + Anaconda link (fields escaped for HTML)
                 self.conda_info_label.setTextFormat(Qt.RichText)
                 self.conda_info_label.setText(
-                    f"<b>Version:</b> {v}<br><b>Build:</b> {b}<br><b>Channel:</b> {c}{anaconda_link}"
+                    f"<b>Version:</b> {html.escape(str(v))}<br>"
+                    f"<b>Build:</b> {html.escape(str(b))}<br>"
+                    f"<b>Channel:</b> {html.escape(str(c))}{anaconda_link}"
                 )
                 self.conda_info_label.setOpenExternalLinks(True)
 
@@ -133,10 +139,17 @@ class CondaInstalledMixin:
 
     def _fetch_conda_homepage(self, pkg, channel_name):
         """Fetch the home page URL using the Anaconda API for lightning-fast results."""
-        code = f"""
-import urllib.request, json
+        # channel/name passed as argv (NOT interpolated) and URL-encoded in-process,
+        # so special characters cannot break the script or inject code.
+        code = """
+import sys, json, urllib.request, urllib.parse
+channel = urllib.parse.quote(sys.argv[1], safe='')
+name = urllib.parse.quote(sys.argv[2], safe='')
 try:
-    req = urllib.request.Request('https://api.anaconda.org/package/{channel_name}/{pkg}', headers={{'User-Agent': 'Mozilla/5.0'}})
+    req = urllib.request.Request(
+        'https://api.anaconda.org/package/' + channel + '/' + name,
+        headers={'User-Agent': 'Mozilla/5.0'},
+    )
     with urllib.request.urlopen(req, timeout=5) as r:
         d = json.loads(r.read().decode())
         h = d.get('home', '')
@@ -155,7 +168,7 @@ except Exception:
             )
         )
         self._conda_info_proc.finished.connect(self._on_conda_info_finished)
-        self._conda_info_proc.start(sys.executable, ["-c", code])
+        self._conda_info_proc.start(sys.executable, ["-c", code, channel_name, pkg])
 
     def _on_conda_info_finished(self):
         output = self._conda_info_proc_output.strip()
@@ -163,7 +176,8 @@ except Exception:
             current_text = self.conda_info_label.text()
             # Avoid adding duplicate homepage link if it's already present (or same as Anaconda link)
             if "🌐 Project Homepage" not in current_text:
-                homepage_link = f'<br><a href="{output}" target="_blank" style="color: #039BE5; text-decoration: underline;">🌐 Project Homepage</a>'
+                hp = html.escape(output, quote=True)
+                homepage_link = f'<br><a href="{hp}" target="_blank" style="color: #039BE5; text-decoration: underline;">🌐 Project Homepage</a>'
                 self.conda_info_label.setText(current_text + homepage_link)
                 self.conda_info_label.setOpenExternalLinks(True)
 

@@ -51,7 +51,7 @@ class NuitkaMixin:
         run_layout = QVBoxLayout(run_tab)
 
         # --- Paths & Targets ---
-        paths_group = QGroupBox("Paths & Targets")
+        paths_group = QGroupBox("Paths && Targets")
         paths_layout = QFormLayout(paths_group)
 
         self.nuitka_entry_edit = QLineEdit()
@@ -147,12 +147,12 @@ class NuitkaMixin:
 
         run_layout.addWidget(modes_group)
 
-        # --- Data & Plugins (collapsible) ---
-        self.deps_group = self._create_collapsible_group("Data & Plugins")
+        # --- Data (collapsible) ---
+        self.deps_group = self._create_collapsible_group("Include Data")
         deps_layout = QVBoxLayout(self.deps_group.content_widget)
 
         # ---- Include Data Directories (--include-data-dir) ----
-        data_dir_label = QLabel("Include Data Directories:")
+        data_dir_label = QLabel("Include Directories:")
         data_dir_label.setToolTip(
             "(--include-data-dir=source=destination)\nRecursively copies whole asset folders into your build deployment. Source must be a local folder path, and destination must be a relative path inside the distribution folder."
         )
@@ -201,7 +201,7 @@ class NuitkaMixin:
         deps_layout.addWidget(self.nuitka_auto_map_dirs_cb)
 
         # ---- Include Data Files (--include-data-files) ----
-        data_file_label = QLabel("Include Data Files:")
+        data_file_label = QLabel("Include Files:")
         data_file_label.setToolTip(
             "(--include-data-files=source=destination)\nCopies individual pattern assets (e.g., config.json, image.png) into your build distribution workspace layout."
         )
@@ -252,7 +252,7 @@ class NuitkaMixin:
         run_layout.addWidget(self.deps_group)
 
         # --- Icon & Advanced Options (collapsible) ---
-        self.advanced_group = self._create_collapsible_group("Icon & Advanced Options")
+        self.advanced_group = self._create_collapsible_group("Icon && Advanced Options")
         advanced_layout = QFormLayout(self.advanced_group.content_widget)
 
         self.nuitka_icon_edit = QLineEdit()
@@ -303,6 +303,22 @@ class NuitkaMixin:
             "by their namespace, bypassing static dependency detection."
         )
         advanced_layout.addRow("Include Modules:", self.nuitka_include_modules_edit)
+
+        # ---- Exclude Packages (new) ----
+        self.nuitka_exclude_packages_edit = QLineEdit()
+        self.nuitka_exclude_packages_edit.setPlaceholderText("package_to_exclude")
+        self.nuitka_exclude_packages_edit.setToolTip(
+            "(--exclude-package)\nExclude a whole package from being included in the compilation."
+        )
+        advanced_layout.addRow("Exclude Packages:", self.nuitka_exclude_packages_edit)
+
+        # ---- Exclude Modules (new) ----
+        self.nuitka_exclude_modules_edit = QLineEdit()
+        self.nuitka_exclude_modules_edit.setPlaceholderText("module_to_exclude")
+        self.nuitka_exclude_modules_edit.setToolTip(
+            "(--exclude-module)\nExclude a specific module from being included."
+        )
+        advanced_layout.addRow("Exclude Modules:", self.nuitka_exclude_modules_edit)
 
         self.nuitka_uac_admin_cb = QCheckBox("--windows-uac-admin")
         self.nuitka_uac_admin_cb.setToolTip(
@@ -564,6 +580,8 @@ class NuitkaMixin:
             self.nuitka_icon_edit,
             self.nuitka_include_packages_edit,
             self.nuitka_include_modules_edit,
+            self.nuitka_exclude_packages_edit,   # new
+            self.nuitka_exclude_modules_edit,    # new
         ]
         for edit in edits:
             edit.textChanged.connect(self._update_nuitka_preview)
@@ -650,6 +668,13 @@ class NuitkaMixin:
         self.nuitka_include_modules_edit.setText(
             self.settings.get("nuitka_include_modules", "")
         )
+        # New exclude fields
+        self.nuitka_exclude_packages_edit.setText(
+            self.settings.get("nuitka_exclude_packages", "")
+        )
+        self.nuitka_exclude_modules_edit.setText(
+            self.settings.get("nuitka_exclude_modules", "")
+        )
         self.nuitka_uac_admin_cb.setChecked(
             self.settings.get("nuitka_uac_admin", False)
         )
@@ -726,6 +751,13 @@ class NuitkaMixin:
         )
         self.settings.set(
             "nuitka_include_modules", self.nuitka_include_modules_edit.text().strip()
+        )
+        # New exclude fields
+        self.settings.set(
+            "nuitka_exclude_packages", self.nuitka_exclude_packages_edit.text().strip()
+        )
+        self.settings.set(
+            "nuitka_exclude_modules", self.nuitka_exclude_modules_edit.text().strip()
         )
         self.settings.set("nuitka_uac_admin", self.nuitka_uac_admin_cb.isChecked())
         self.settings.set("nuitka_jobs", self.nuitka_jobs_spin.value())
@@ -816,6 +848,14 @@ class NuitkaMixin:
         for mod in self.nuitka_include_modules_edit.text().strip().split():
             if mod:
                 args.append(f"--include-module={mod}")
+
+        # New exclude flags
+        for pkg in self.nuitka_exclude_packages_edit.text().strip().split():
+            if pkg:
+                args.append(f"--exclude-package={pkg}")
+        for mod in self.nuitka_exclude_modules_edit.text().strip().split():
+            if mod:
+                args.append(f"--exclude-module={mod}")
 
         if self.nuitka_uac_admin_cb.isChecked() and sys.platform == "win32":
             args.append("--windows-uac-admin")
@@ -920,6 +960,8 @@ class NuitkaMixin:
             "icon": self.nuitka_icon_edit.text().strip(),
             "include_packages": self.nuitka_include_packages_edit.text().strip(),
             "include_modules": self.nuitka_include_modules_edit.text().strip(),
+            "exclude_packages": self.nuitka_exclude_packages_edit.text().strip(),
+            "exclude_modules": self.nuitka_exclude_modules_edit.text().strip(),
             "uac_admin": self.nuitka_uac_admin_cb.isChecked(),
             "jobs": self.nuitka_jobs_spin.value(),
             "auto_plugin_pyside6": self.nuitka_auto_plugin_pyside6_cb.isChecked(),
@@ -986,6 +1028,9 @@ class NuitkaMixin:
             self.nuitka_icon_edit.setText(data.get("icon", ""))
             self.nuitka_include_packages_edit.setText(data.get("include_packages", ""))
             self.nuitka_include_modules_edit.setText(data.get("include_modules", ""))
+            # New exclude fields
+            self.nuitka_exclude_packages_edit.setText(data.get("exclude_packages", ""))
+            self.nuitka_exclude_modules_edit.setText(data.get("exclude_modules", ""))
             self.nuitka_uac_admin_cb.setChecked(data.get("uac_admin", False))
             self.nuitka_jobs_spin.setValue(data.get("jobs", 0))
             self.nuitka_auto_plugin_pyside6_cb.setChecked(

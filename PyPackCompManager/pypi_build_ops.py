@@ -6,6 +6,8 @@ consumed directly by the PyPI install and wheel commands.
 
 import os
 import sys
+import html
+from urllib.parse import quote
 
 from PySide6.QtCore import Qt, QProcess
 from PySide6.QtWidgets import QMessageBox, QFileDialog
@@ -26,34 +28,35 @@ class PyPIBuildMixin:
 
         self.pypi_info_label.setText("Searching PyPI...")
 
-        # Fixed embedded script: handles "UNKNOWN", null project_urls, case-insensitive keys, and newlines
-        code = f"""
-import urllib.request, json
+        # The package name is passed as argv (NOT interpolated into the source) and
+        # URL-encoded inside the subprocess, so special characters can neither break
+        # the script nor inject code. Plain (non-f) string: braces are literal.
+        code = """
+import sys, json, urllib.request, urllib.parse
+name = urllib.parse.quote(sys.argv[1], safe='')
 try:
-    req = urllib.request.Request('https://pypi.org/pypi/{pkg}/json', headers={{'User-Agent': 'Mozilla/5.0'}})
+    req = urllib.request.Request(
+        'https://pypi.org/pypi/' + name + '/json',
+        headers={'User-Agent': 'Mozilla/5.0'},
+    )
     with urllib.request.urlopen(req, timeout=5) as r:
         d = json.loads(r.read().decode())
-        info = d.get('info', {{}})
-        
-        # 1. Safely extract version and summary (stripping newlines to protect the ||| split)
+        info = d.get('info', {})
+
+        # Version + summary (strip newlines to protect the ||| split)
         v = info.get('version', 'unknown')
         s = str(info.get('summary', 'No summary')).replace('\\n', ' ')
-        
-        # 2. Handle the "UNKNOWN" fallback
+
+        # Homepage with "UNKNOWN" / null project_urls fallbacks (case-insensitive)
         h = info.get('home_page')
         if not h or h == 'UNKNOWN':
-            # 3. Handle null project_urls safely using `or {{}}`
-            urls = info.get('project_urls') or {{}}
-            
-            # 4. Normalize keys to lowercase for case-insensitive matching
-            urls_lower = {{k.lower(): val for k, val in urls.items()}}
-            
-            # 5. Check common URL keys
-            h = urls_lower.get('homepage') or urls_lower.get('home') or urls_lower.get('repository') or urls_lower.get('source') or ''
-            
+            urls = info.get('project_urls') or {}
+            urls_lower = {k.lower(): val for k, val in urls.items()}
+            h = (urls_lower.get('homepage') or urls_lower.get('home')
+                 or urls_lower.get('repository') or urls_lower.get('source') or '')
         if not h:
             h = ''
-            
+
         print(v + "|||" + s + "|||" + str(h).strip())
 except Exception:
     print("NOT_FOUND")
@@ -70,7 +73,7 @@ except Exception:
         )
         self._pypi_proc.finished.connect(self._on_pypi_search_finished)
         self._pypi_proc.errorOccurred.connect(self._on_pypi_search_error)
-        self._pypi_proc.start(sys.executable, ["-c", code])
+        self._pypi_proc.start(sys.executable, ["-c", code, pkg])
 
     def _on_pypi_search_error(self, error):
         if error == QProcess.ProcessError.FailedToStart:
@@ -90,16 +93,24 @@ except Exception:
 
         parts = out.split("|||")
         pkg_name = self.pypi_search_edit.text().strip()
-        v = parts[0]
-        s = parts[1]
+        v = html.escape(str(parts[0]))
+        s = html.escape(str(parts[1]))
         homepage = parts[2] if len(parts) > 2 else ""
 
-        # Always add a link to the PyPI project page
-        pypi_link = f'<br><a href="https://pypi.org/project/{pkg_name}/" target="_blank" style="color: #039BE5; text-decoration: underline;">📦 PyPI Project Page</a>'
-        
-        # Add homepage link if available and valid
+        # Always add a link to the PyPI project page (name URL-encoded for the href)
+        pkg_q = quote(pkg_name, safe="")
+        pypi_link = (
+            f'<br><a href="https://pypi.org/project/{pkg_q}/" target="_blank" '
+            f'style="color: #039BE5; text-decoration: underline;">📦 PyPI Project Page</a>'
+        )
+
+        # Add homepage link if available and valid (escaped for the href attribute)
         if homepage and homepage.startswith("http"):
-            homepage_link = f'<br><a href="{homepage}" target="_blank" style="color: #039BE5; text-decoration: underline;">🌐 Project Homepage</a>'
+            hp = html.escape(homepage, quote=True)
+            homepage_link = (
+                f'<br><a href="{hp}" target="_blank" '
+                f'style="color: #039BE5; text-decoration: underline;">🌐 Project Homepage</a>'
+            )
         else:
             homepage_link = ""
 
@@ -181,32 +192,39 @@ except Exception:
         self.pypi_cmake_args_edit.setEnabled(enabled)
 
     def _update_cmake_args_from_presets(self):
-        if getattr(self, "_cmake_manual_edit", False):
-            return
-        parts = []
-        if self.cmake_ninja_cb.isChecked():
-            parts.append("-G Ninja")
-        if self.cmake_cuda_cb.isChecked():
-            parts.append("-DGGML_CUDA=on")
-        if self.cmake_metal_cb.isChecked():
-            parts.append("-DGGML_METAL=on")
-        if self.cmake_vulkan_cb.isChecked():
-            parts.append("-DGGML_VULKAN=on")
-        if self.cmake_openblas_cb.isChecked():
-            parts.append("-DGGML_OPENBLAS=on")
-        if self.cmake_clblast_cb.isChecked():
-            parts.append("-DGGML_CLBLAST=on")
-        if self.cmake_unsupported_compiler_cb.isChecked():
-            parts.append('-DCMAKE_CUDA_FLAGS="-allow-unsupported-compiler"')
+        """Dynamically add or remove preset flags without overwriting custom user input."""
+        current_text = self.pypi_cmake_args_edit.text()
+        
+        # Map checkboxes to their respective CMake flags
+        preset_map = {
+            self.cmake_ninja_cb: "-G Ninja",
+            self.cmake_cuda_cb: "-DGGML_CUDA=on",
+            self.cmake_metal_cb: "-DGGML_METAL=on",
+            self.cmake_vulkan_cb: "-DGGML_VULKAN=on",
+            self.cmake_openblas_cb: "-DGGML_OPENBLAS=on",
+            self.cmake_clblast_cb: "-DGGML_CLBLAST=on",
+            self.cmake_unsupported_compiler_cb: '-DCMAKE_CUDA_FLAGS="-allow-unsupported-compiler"'
+        }
 
-        new_args = " ".join(parts)
-        if new_args != self.pypi_cmake_args_edit.text():
+        new_text = current_text
+        
+        for cb, flag in preset_map.items():
+            if cb.isChecked():
+                # Add flag if it's not already in the text
+                if flag not in new_text:
+                    new_text = f"{new_text} {flag}".strip()
+            else:
+                # Remove flag if it was unchecked
+                if flag in new_text:
+                    new_text = new_text.replace(flag, "").strip()
+                    # Clean up any double spaces left behind
+                    new_text = " ".join(new_text.split())
+
+        # Only update and block signals if the text actually changed
+        if new_text != current_text:
             self.pypi_cmake_args_edit.blockSignals(True)
-            self.pypi_cmake_args_edit.setText(new_args)
+            self.pypi_cmake_args_edit.setText(new_text)
             self.pypi_cmake_args_edit.blockSignals(False)
-
-    def _on_cmake_args_manually_edited(self):
-        self._cmake_manual_edit = True
 
     # ========== Wheel Building ==========
     def _browse_wheel_output_dir(self):

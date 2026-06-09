@@ -181,9 +181,7 @@ class GlobalPackagesUIMixin:
         self.pypi_cmake_args_edit.setToolTip(
             "Additional CMake arguments (space-separated)."
         )
-        self.pypi_cmake_args_edit.textChanged.connect(
-            self._on_cmake_args_manually_edited
-        )
+        self.pypi_cmake_args_edit.textChanged.connect(self.save_current_settings)
         cmake_layout.addWidget(self.pypi_cmake_args_edit)
         build_content_layout.addLayout(cmake_layout)
 
@@ -548,9 +546,6 @@ class GlobalPackagesUIMixin:
         self.build_group.is_expanded = expanded
         self.build_group.content_widget.setVisible(expanded)
         self.build_group._update_title()
-
-        # Reset manual edit flag
-        self._cmake_manual_edit = False
 
         # Apply enabled/disabled state of advanced widgets based on checkbox
         self._toggle_advanced_build_widgets(self.build_enabled_cb.isChecked())

@@ -24,15 +24,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
      inkscape:document-units="mm"
-     inkscape:zoom="1.6529315"
-     inkscape:cx="609.52313"
-     inkscape:cy="293.41808"
+     inkscape:zoom="1.1687991"
+     inkscape:cx="272.92972"
+     inkscape:cy="258.38487"
      inkscape:window-width="3840"
      inkscape:window-height="1522"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
+     inkscape:current-layer="g54" />
   <defs
      id="defs1">
     <linearGradient
@@ -427,7 +427,7 @@
        fy="131.96877"
        r="34.269634"
        gradientUnits="userSpaceOnUse"
-       gradientTransform="matrix(1.1387179,0,0,1.1387179,-14.522504,-18.306427)" />
+       gradientTransform="matrix(1.364957,0,0,1.364957,-38.202585,-48.167813)" />
     <filter
        style="color-interpolation-filters:sRGB"
        inkscape:label="Drop Shadow"
@@ -538,6 +538,29 @@
          in2="comp1"
          id="feComposite64" />
     </filter>
+    <filter
+       style="color-interpolation-filters:sRGB;"
+       inkscape:label="Blur"
+       id="filter27"
+       x="-0.058911312"
+       y="-0.054043852"
+       width="1.1178226"
+       height="1.1080877">
+      <feGaussianBlur
+         stdDeviation="1 1"
+         result="fbSourceGraphic"
+         id="feGaussianBlur27" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix28" />
+      <feGaussianBlur
+         id="feGaussianBlur28"
+         stdDeviation="2 2"
+         result="blur"
+         in="fbSourceGraphic" />
+    </filter>
   </defs>
   <g
      inkscape:label="Ebene 1"
@@ -546,17 +569,9 @@
     <g
        id="g64"
        transform="translate(-35.865333,-63.193454)">
-      <rect
-         style="fill:#161622;fill-opacity:1;stroke-width:1.50923;filter:url(#filter51)"
-         id="rect47"
-         width="128"
-         height="128"
-         x="40.665333"
-         y="67.993454"
-         ry="22.014185" />
       <g
          id="g11"
-         transform="matrix(1.0526075,0,0,1.0526075,-6.4926632,-5.6137264)">
+         transform="matrix(1.2617382,0,0,1.2617382,-28.577386,-32.953343)">
         <rect
            style="fill:url(#linearGradient6);fill-opacity:1;stroke-width:1.56596"
            id="rect5"
@@ -585,16 +600,16 @@
            ry="16.748283" />
       </g>
       <rect
-         style="fill:url(#radialGradient32);stroke:none;stroke-width:0.329357;stroke-linecap:butt;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:url(#radialGradient32);stroke:none;stroke-width:0.394793;stroke-linecap:butt;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:1"
          id="rect31"
-         width="78.04689"
-         height="78.04689"
-         x="65.667488"
-         y="92.94532"
-         ry="14.927" />
+         width="93.553146"
+         height="93.553146"
+         x="57.919453"
+         y="85.187294"
+         ry="17.892677" />
       <g
          id="g10"
-         transform="matrix(1.0840499,0,0,1.0840499,-167.42909,6.355282)">
+         transform="matrix(1.2994275,0,0,1.2994275,-221.48846,-18.606348)">
         <path
            id="path23"
            d="M 0,-46 39.799999,-23 0,0 -39.799999,-23 Z"
@@ -616,7 +631,7 @@
       </g>
       <g
          id="g55"
-         transform="matrix(1.1378531,0,0,1.1378531,-14.428442,-18.195709)"
+         transform="matrix(1.3639203,0,0,1.3639203,-38.089835,-48.035098)"
          style="filter:url(#filter64)">
         <g
            id="g54"

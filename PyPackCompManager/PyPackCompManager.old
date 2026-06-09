@@ -14,7 +14,6 @@ from build_tools_pane import BuildToolsMixin
 from nuitka_pane import NuitkaMixin
 from local_packages_pane import LocalPackagesMixin
 from global_packages_pane import GlobalPackagesMixin
-from uv_project import UvProjectMixin          # <-- NEW IMPORT
 
 
 class MainWindow(
@@ -26,7 +25,6 @@ class MainWindow(
     NuitkaMixin,
     LocalPackagesMixin,
     GlobalPackagesMixin,
-    UvProjectMixin,                                 # <-- ADDED
 ):
     """
     Main application window inheriting functionality from separated Mixin submodules.
@@ -71,23 +69,17 @@ class MainWindow(
         workspace_dock = self._build_workspace_dock()
         build_tools_dock = self._build_tools_dock()
         nuitka_dock = self._build_nuitka_dock()
-        uv_dock = self._build_uv_project_dock()          # <-- NEW
 
         self.addDockWidget(Qt.LeftDockWidgetArea, workspace_dock)
+
         self.addDockWidget(Qt.LeftDockWidgetArea, build_tools_dock)
         self.addDockWidget(Qt.LeftDockWidgetArea, nuitka_dock)
-        self.addDockWidget(Qt.LeftDockWidgetArea, uv_dock)  # <-- ADD UV DOCK
 
-        self.tabifyDockWidget(uv_dock, build_tools_dock)
-        self.tabifyDockWidget(build_tools_dock, nuitka_dock)      # <-- OPTIONAL: tab with Nuitka
+        self.tabifyDockWidget(build_tools_dock, nuitka_dock)
         build_tools_dock.raise_()
 
         self.addDockWidget(Qt.RightDockWidgetArea, self._build_local_packages_dock())
         self.addDockWidget(Qt.RightDockWidgetArea, self._build_global_packages_dock())
-
-        # Connect project folder changes to refresh UV project info
-        if hasattr(self, "folder_edit"):
-            self.folder_edit.textChanged.connect(self._refresh_uv_info)
 
     def load_settings_to_ui(self):
         """Distributes the load command to all UI submodules."""
@@ -99,7 +91,6 @@ class MainWindow(
             self._load_local_settings()
             self._load_global_settings()
             self._load_terminal_settings()
-            self._load_uv_settings()                    # <-- ADDED
 
             # Restore window geometry (size/position) and state (dock layouts)
             geometry_b64 = self.settings.get("window_geometry", "")
@@ -125,7 +116,6 @@ class MainWindow(
         self._save_local_settings()
         self._save_global_settings()
         self._save_terminal_settings()
-        self._save_uv_settings()                         # <-- ADDED
 
         # Save window geometry and state as base64 strings so JSON can store them
         geom = self.saveGeometry().toBase64().data().decode("utf-8")
