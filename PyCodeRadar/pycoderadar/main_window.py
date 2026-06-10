@@ -351,9 +351,11 @@ class MainWindow(QMainWindow):
 
     def _add_quick_actions(self, card: QFrame, group: list):
         row = QHBoxLayout(); row.setContentsMargins(0, 5, 0, 0)
-        for label, slot in [("All",      lambda g=group: self._toggle_group(g, True)),
-                            ("None",     lambda g=group: self._toggle_group(g, False)),
-                            ("Defaults", lambda g=group: self._reset_group(g, ScanOptions()))]:
+        # Fix: the lambda must accept the boolean 'checked' argument emitted by clicked()
+        # otherwise 'g' absorbs the boolean (False) leading to a TypeError in _toggle_group
+        for label, slot in [("All",      lambda checked=False, g=group: self._toggle_group(g, True)),
+                            ("None",     lambda checked=False, g=group: self._toggle_group(g, False)),
+                            ("Defaults", lambda checked=False, g=group: self._reset_group(g, ScanOptions()))]:
             b = QPushButton(label); b.setObjectName("ghost"); b.clicked.connect(slot)
             row.addWidget(b)
         row.addStretch()
