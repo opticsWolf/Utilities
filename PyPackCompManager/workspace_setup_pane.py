@@ -112,10 +112,10 @@ class WorkspaceMixin:
         container = QWidget()
         layout = QVBoxLayout(container)
 
+        layout.addWidget(self._build_project_group())
         layout.addWidget(self._build_env_select_group())
         layout.addWidget(self._build_create_group())
         layout.addWidget(self._build_duplicate_group())
-        layout.addWidget(self._build_project_group())
         layout.addStretch()
 
         # Wire env-selection changes once every group exists (the duplicate pane's
@@ -345,6 +345,7 @@ class WorkspaceMixin:
         self.folder_edit.setToolTip(
             "The root folder of your Rust/Python project (where Cargo.toml is located)."
         )
+        self.folder_edit.editingFinished.connect(self._on_folder_edit_finished)
         browse_folder_btn = QPushButton("📂")
         self._setup_button(browse_folder_btn, "Browse for your project folder.")
         browse_folder_btn.clicked.connect(self.browse_folder)
@@ -355,7 +356,83 @@ class WorkspaceMixin:
         row.addWidget(browse_folder_btn)
         v.addLayout(row)
 
+        # Recent-folders quick selector (below the path row), latest on top.
+        self.project_history_combo = QComboBox()
+        self.project_history_combo.setToolTip(
+            "Quick-select a recently used project folder (up to 12, newest first)."
+        )
+        self.project_history_combo.activated.connect(self._on_project_history_selected)
+        v.addWidget(self.project_history_combo)
+        self._refresh_project_history_combo()
+
         return group
+
+    # ----- Project folder history -----
+    _PROJECT_HISTORY_MAX = 12
+
+    def _load_project_history(self: WorkspaceHost):
+        raw = self.settings.get("project_folder_history", "")
+        return [p for p in raw.split("\n") if p.strip()]
+
+    def _save_project_history(self: WorkspaceHost, items):
+        self.settings.set("project_folder_history", "\n".join(items[: self._PROJECT_HISTORY_MAX]))
+
+    def _add_to_project_history(self: WorkspaceHost, path):
+        path = (path or "").strip()
+        if not path:
+            return
+        items = [p for p in self._load_project_history() if p != path]
+        items.insert(0, path)  # newest on top, de-duplicated
+        self._save_project_history(items)
+        self._refresh_project_history_combo()
+
+    def _refresh_project_history_combo(self: WorkspaceHost):
+        if not hasattr(self, "project_history_combo"):
+            return
+        items = self._load_project_history()
+        self.project_history_combo.blockSignals(True)
+        self.project_history_combo.clear()
+        self.project_history_combo.addItem("Recent folders…")  # index 0 = placeholder
+        self.project_history_combo.addItems(items)
+        self.project_history_combo.setCurrentIndex(0)
+        self.project_history_combo.blockSignals(False)
+        self.project_history_combo.setEnabled(bool(items))
+
+    def _on_project_history_selected(self: WorkspaceHost, index):
+        # Behaves like a menu: ignore the placeholder, apply a real entry, then reset.
+        if index <= 0:
+            return
+        path = self.project_history_combo.itemText(index)
+        self.project_history_combo.blockSignals(True)
+        self.project_history_combo.setCurrentIndex(0)
+        self.project_history_combo.blockSignals(False)
+        if not path:
+            return
+        if not os.path.isdir(path):
+            QMessageBox.warning(
+                self, "Folder Missing", f"This folder no longer exists:\n{path}"
+            )
+            # Prune the stale entry.
+            self._save_project_history([p for p in self._load_project_history() if p != path])
+            self._refresh_project_history_combo()
+            return
+        self.folder_edit.setText(path)
+        self._add_to_project_history(path)  # move to top
+        self.save_current_settings()
+        if hasattr(self, "refresh_wheel_list"):
+            self.refresh_wheel_list()
+
+    def _on_folder_edit_finished(self: WorkspaceHost):
+        """When the user types/edits the path directly, record it in history -- but
+        only if it actually exists -- and apply it if the folder changed."""
+        path = self.folder_edit.text().strip()
+        if not path or not os.path.isdir(path):
+            return  # don't pollute history with non-existent paths
+        self._add_to_project_history(path)
+        if path != self.settings.get("project_folder", ""):
+            self.save_current_settings()
+            if hasattr(self, "refresh_wheel_list"):
+                self.refresh_wheel_list()
 
     # ==================================================================
     # Dynamic form behaviour
@@ -476,11 +553,21 @@ class WorkspaceMixin:
             if not conda_exe:
                 self._set_default_label("")  # unknown until a conda env is available
                 return
-            self._set_default_label("resolving…")
             channel = (
                 self.conda_channel_combo.currentText().strip()
                 if hasattr(self, "conda_channel_combo") else ""
             )
+            # The slow part is fetching/parsing repodata; cache the resolved default
+            # per (conda exe + channel) so it is paid only once per session.
+            cache = getattr(self, "_conda_default_cache", None)
+            if cache is None:
+                cache = self._conda_default_cache = {}
+            key = f"{conda_exe}|{channel}"
+            if key in cache:
+                self._set_default_label(cache[key])
+                return
+
+            self._set_default_label("resolving…")
             args = ["search", "python", "--json"]
             if channel and channel != "defaults":
                 args += ["-c", channel]
@@ -493,7 +580,7 @@ class WorkspaceMixin:
                     + self._py_probe.readAllStandardOutput().data().decode("utf-8", "replace"),
                 )
             )
-            self._py_probe.finished.connect(lambda *a: self._on_conda_default_found(token))
+            self._py_probe.finished.connect(lambda *a: self._on_conda_default_found(token, key))
             self._py_probe.errorOccurred.connect(lambda *a: self._set_default_label(""))
             self._py_probe.start(conda_exe, args)
 
@@ -525,7 +612,7 @@ class WorkspaceMixin:
         ver = (self._py_probe2_out or "").strip()
         self._set_default_label(ver if ver and ver[0].isdigit() else "")
 
-    def _on_conda_default_found(self, token):
+    def _on_conda_default_found(self, token, key=None):
         if token != getattr(self, "_py_default_token", None):
             return
         try:
@@ -535,6 +622,12 @@ class WorkspaceMixin:
             ver = builds[-1].get("version", "") if builds else ""
         except Exception:
             ver = ""
+        # Cache only successful resolutions so failures can be retried later.
+        if ver and key is not None:
+            cache = getattr(self, "_conda_default_cache", None)
+            if cache is None:
+                cache = self._conda_default_cache = {}
+            cache[key] = ver
         self._set_default_label(ver)
 
 
@@ -644,6 +737,13 @@ except Exception as exc:
     def _load_workspace_settings(self: WorkspaceHost):
         self.env_base_edit.setText(self.settings.get("env_base_dir", ""))
         self.folder_edit.setText(self.settings.get("project_folder", ""))
+
+        # Make sure the current project folder is represented in the history, then
+        # (re)build the quick-select dropdown.
+        loaded_folder = self.settings.get("project_folder", "").strip()
+        if loaded_folder and loaded_folder not in self._load_project_history():
+            self._add_to_project_history(loaded_folder)
+        self._refresh_project_history_combo()
 
         # Create pane defaults (block signals so loading doesn't trigger saves)
         def _set_combo(combo, value):
@@ -803,6 +903,7 @@ except Exception as exc:
         folder = QFileDialog.getExistingDirectory(self, "Select Project Folder", start_path)
         if folder:
             self.folder_edit.setText(folder)
+            self._add_to_project_history(folder)
             self.save_current_settings()
             if hasattr(self, "refresh_wheel_list"):
                 self.refresh_wheel_list()
